@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP JM - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        .django-form p {
+            margin-bottom: 1rem;
+        }
+        
+        .django-form label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .django-form input[type="text"],
+        .django-form input[type="password"] {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .django-form input[type="text"]:focus,
+        .django-form input[type="password"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .django-form .errorlist {
+            list-style: none;
+            padding: 0;
+            margin: 0.5rem 0 0 0;
+            color: #ef4444;
+            font-size: 0.875rem;
+        }
+        
+        .django-form .errorlist li {
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">ERP JM</h1>
+                <p class="text-lg text-gray-600">Login</p>
+            </div>
+            
+            {% if messages %}
+                <div class="mb-6">
+                    {% for message in messages %}
+                        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <form method="post" class="django-form">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mt-2">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
