@@ -84,18 +84,19 @@ def material_detail_api(request, material_id):
         - 404: Si el material no existe
     """
     try:
-        # Intentar buscar por material_code primero
+        # Intentar buscar por id_material primero (ej: MP-105)
         try:
-            material = Material.objects.get(material_code=material_id)
+            material = Material.objects.get(id_material=material_id)
         except Material.DoesNotExist:
-            # Si falla, intentar por ID numérico
+            # Si falla, intentar por ID numérico (PK)
             material = Material.objects.get(id=int(material_id))
         
         data = {
             'material_id': material.id,
+            'id_material': material.id_material,
             'name': material.name,
             'description': material.description,
-            'material_code': material.material_code,
+            'material_code': material.id_material,
             'default_unit': material.unit.name if material.unit else None,
             'default_unit_id': material.unit.id if material.unit else None,
             'material_type': material.material_type.name if material.material_type else None,
@@ -105,7 +106,7 @@ def material_detail_api(request, material_id):
         return JsonResponse(data)
     
     except (Material.DoesNotExist, ValueError):
-        raise Http404("Material no encontrado")
+        return JsonResponse({'error': 'Material not found'}, status=404)
 
 # API para crear pedido de compra (POST JSON)
 @csrf_exempt
@@ -169,15 +170,18 @@ def create_purchase_order_api(request):
         except Supplier.DoesNotExist:
             return JsonResponse({'error': f'Supplier with id {supplier_id} does not exist'}, status=400)
         
-        # Obtener el estado por defecto (asumiendo id=2 es "Confirmado")
-        # Puedes ajustar esto según tus estados definidos
+        # Obtener el estado por defecto (buscar "Borrador" o usar el primero disponible)
         try:
-            default_status = OrderStatus.objects.get(id=2)
+            # Intentar obtener el estado "Borrador" primero
+            default_status = OrderStatus.objects.get(symbol='BOR')
         except OrderStatus.DoesNotExist:
-            # Si no existe el estado 2, usar el primero disponible
-            default_status = OrderStatus.objects.first()
-            if not default_status:
-                return JsonResponse({'error': 'No order status found in database'}, status=400)
+            try:
+                # Si no existe "Borrador", intentar id=1 o el primer estado disponible
+                default_status = OrderStatus.objects.get(id=1)
+            except OrderStatus.DoesNotExist:
+                default_status = OrderStatus.objects.first()
+                if not default_status:
+                    return JsonResponse({'error': 'No order status found in database'}, status=400)
         
         # Generar el siguiente id_purchase_order
         # Buscar el último pedido y sumar 1
@@ -230,9 +234,14 @@ def create_purchase_order_api(request):
             
             # Validar que los objetos relacionados existan
             try:
-                material = Material.objects.get(id=material_id)
-            except Material.DoesNotExist:
-                return JsonResponse({'error': f'Line {index}: Material with id {material_id} does not exist'}, status=400)
+                # Intentar buscar por id_material (código ERP como MP-105)
+                try:
+                    material = Material.objects.get(id_material=material_id)
+                except Material.DoesNotExist:
+                    # Si falla, intentar por PK numérico
+                    material = Material.objects.get(id=int(material_id))
+            except (Material.DoesNotExist, ValueError):
+                return JsonResponse({'error': f'Line {index}: Material not found ({material_id})'}, status=400)
             
             try:
                 unit = Unit.objects.get(id=unit_id)
@@ -263,6 +272,7 @@ def create_purchase_order_api(request):
         
         return JsonResponse({
             'message': 'Purchase order created successfully',
+            'id_purchase_order': new_purchase_order_id,
             'purchase_order_id': new_purchase_order_id,
             'lines_created': len(lines)
         }, status=200)

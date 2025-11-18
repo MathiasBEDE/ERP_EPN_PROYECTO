@@ -75,7 +75,7 @@
                 <p class="text-sm text-gray-600 mb-4">
                     {% if permissions.purchases == 1 %}Solo visualizar{% elif permissions.purchases == 2 %}Leer y escribir{% endif %}
                 </p>
-                <a href="#" class="mt-auto bg-teal-500 hover:bg-teal-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                <a href="{% url 'purchases:purchase_order_new' %}" class="mt-auto bg-teal-500 hover:bg-teal-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
                     Acceder
                 </a>
             </div>

@@ -1,293 +1,684 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Purchase Order - ERP JM</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <div class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">ERP JM</h1>
-            <h2 class="text-xl text-gray-600 mt-2">CREATE NEW PURCHASE ORDER</h2>
-        </div>
+{% extends "core/base.html" %}
 
-        <!-- Form -->
-        <form id="purchaseOrderForm" method="POST" class="space-y-6">
-            {% csrf_token %}
-
-            <!-- Purchase Order Header -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-700 mb-4">Purchase Order Information</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- ID Supplier -->
-                    <div>
-                        <label for="id_supplier" class="block text-sm font-medium text-gray-700 mb-1">
-                            ID SUPPLIER *
-                        </label>
-                        <input 
-                            type="number" 
-                            id="id_supplier" 
-                            name="supplier_id" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                            data-field="supplier-id"
-                        >
-                    </div>
-
-                    <!-- Estimated Delivery Date -->
-                    <div>
-                        <label for="estimated_delivery_date" class="block text-sm font-medium text-gray-700 mb-1">
-                            ESTIMATED DELIVERY DATE *
-                        </label>
-                        <input 
-                            type="date" 
-                            id="estimated_delivery_date" 
-                            name="estimated_delivery_date" 
-                            value="{{ today }}"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        >
-                    </div>
-
-                    <!-- Name (readonly, autocompleted) -->
-                    <div>
-                        <label for="supplier_name" class="block text-sm font-medium text-gray-700 mb-1">
-                            NAME
-                        </label>
-                        <input 
-                            type="text" 
-                            id="supplier_name" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                            readonly
-                            data-field="supplier-name"
-                        >
-                    </div>
-
-                    <!-- Address (readonly) -->
-                    <div>
-                        <label for="supplier_address" class="block text-sm font-medium text-gray-700 mb-1">
-                            ADDRESS
-                        </label>
-                        <input 
-                            type="text" 
-                            id="supplier_address" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                            readonly
-                            data-field="supplier-address"
-                        >
-                    </div>
-
-                    <!-- City (readonly) -->
-                    <div>
-                        <label for="supplier_city" class="block text-sm font-medium text-gray-700 mb-1">
-                            CITY
-                        </label>
-                        <input 
-                            type="text" 
-                            id="supplier_city" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                            readonly
-                            data-field="supplier-city"
-                        >
-                    </div>
-
-                    <!-- State/Province (readonly) -->
-                    <div>
-                        <label for="supplier_state" class="block text-sm font-medium text-gray-700 mb-1">
-                            STATE/PROVINCE
-                        </label>
-                        <input 
-                            type="text" 
-                            id="supplier_state" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                            readonly
-                            data-field="supplier-state"
-                        >
-                    </div>
-
-                    <!-- Country (readonly) -->
-                    <div>
-                        <label for="supplier_country" class="block text-sm font-medium text-gray-700 mb-1">
-                            COUNTRY
-                        </label>
-                        <input 
-                            type="text" 
-                            id="supplier_country" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                            readonly
-                            data-field="supplier-country"
-                        >
-                    </div>
-                </div>
-            </div>
-
-            <!-- Line Items Section -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-700">LINE ITEMS</h3>
-                    <button 
-                        type="button" 
-                        id="addItemBtn"
-                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                        + ADD ITEM
-                    </button>
-                </div>
-
-                <!-- Items Table -->
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID MATERIAL</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NAME</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QTY</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UNIT</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRICE</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CURRENCY</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">REMOVE</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lineItemsBody" class="bg-white divide-y divide-gray-200">
-                            <!-- Line items will be added here dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex justify-end space-x-4">
-                <button 
-                    type="button"
-                    onclick="window.history.back()"
-                    class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                    CANCEL
-                </button>
-                <button 
-                    type="submit"
-                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    CREATE
-                </button>
-            </div>
-        </form>
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Create Purchase Order</h1>
+        <p class="text-gray-600 mt-1">Enter supplier and material details to create a new purchase order</p>
     </div>
 
-    <!-- JavaScript for dynamic functionality -->
-    <script>
-        let lineItemCounter = 0;
+    <form id="purchaseOrderForm" class="space-y-6">
+        {% csrf_token %}
 
-        // Add new line item
-        document.getElementById('addItemBtn').addEventListener('click', function() {
-            lineItemCounter++;
-            const tbody = document.getElementById('lineItemsBody');
-            const row = document.createElement('tr');
-            row.setAttribute('data-line-number', lineItemCounter);
+        <!-- Supplier Search Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Search Supplier</h2>
             
-            row.innerHTML = `
-                <td class="px-4 py-3 text-sm text-gray-900">${lineItemCounter}</td>
-                <td class="px-4 py-3">
-                    <input 
-                        type="number" 
-                        name="lines[${lineItemCounter}][material_id]"
-                        class="w-24 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        data-field="material-id"
-                        data-line="${lineItemCounter}"
-                        required
-                    >
-                </td>
-                <td class="px-4 py-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Supplier Search Input -->
+                <div>
+                    <label for="supplierSearchInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Supplier Search (ID) *
+                    </label>
                     <input 
                         type="text" 
-                        name="lines[${lineItemCounter}][material_name]"
-                        class="w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50"
-                        data-field="material-name"
-                        data-line="${lineItemCounter}"
-                        readonly
-                    >
-                </td>
-                <td class="px-4 py-3">
-                    <input 
-                        type="number" 
-                        name="lines[${lineItemCounter}][quantity]"
-                        class="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        min="1"
-                        step="1"
+                        id="supplierSearchInput" 
+                        name="supplier_search"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter Supplier ID (e.g., SUP-001)"
                         required
                     >
-                </td>
-                <td class="px-4 py-3">
+                    <input type="hidden" id="supplierIdHidden" name="supplier_id">
+                </div>
+
+                <!-- Delivery Date -->
+                <div>
+                    <label for="deliveryDateInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Estimated Delivery Date *
+                    </label>
+                    <input 
+                        type="date" 
+                        id="deliveryDateInput" 
+                        name="estimated_delivery_date"
+                        value="{{ today }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                    >
+                </div>
+
+                <!-- Hidden Fields -->
+                <input type="hidden" id="defaultCurrencyHidden" name="default_currency">
+            </div>
+        </div>
+
+        <!-- Supplier Master Data Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Supplier Master Data</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Name -->
+                <div>
+                    <label for="supplierNameInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Name
+                    </label>
                     <input 
                         type="text" 
-                        name="lines[${lineItemCounter}][unit]"
-                        class="w-24 px-2 py-1 border border-gray-300 rounded-md bg-gray-50"
-                        data-field="material-unit"
-                        data-line="${lineItemCounter}"
+                        id="supplierNameInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
                         readonly
                     >
-                    <input type="hidden" name="lines[${lineItemCounter}][unit_id]" data-field="material-unit-id" data-line="${lineItemCounter}">
-                </td>
-                <td class="px-4 py-3">
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label for="supplierAddressInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Address
+                    </label>
                     <input 
-                        type="number" 
-                        name="lines[${lineItemCounter}][price]"
-                        class="w-28 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        min="0"
-                        step="0.01"
-                        required
+                        type="text" 
+                        id="supplierAddressInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                        readonly
                     >
-                </td>
-                <td class="px-4 py-3">
-                    <select 
-                        name="lines[${lineItemCounter}][currency_id]"
-                        class="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
+                </div>
+
+                <!-- City -->
+                <div>
+                    <label for="supplierCityInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                    </label>
+                    <input 
+                        type="text" 
+                        id="supplierCityInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                        readonly
                     >
-                        <option value="">Select...</option>
-                        {% for currency in currencies %}
-                        <option value="{{ currency.id }}">{{ currency.code }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td class="px-4 py-3">
-                    <button 
-                        type="button"
-                        class="text-red-600 hover:text-red-800 font-medium"
-                        onclick="this.closest('tr').remove()"
+                </div>
+
+                <!-- State/Province -->
+                <div>
+                    <label for="supplierStateInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        State/Province
+                    </label>
+                    <input 
+                        type="text" 
+                        id="supplierStateInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                        readonly
                     >
-                        ✕
-                    </button>
-                </td>
-            `;
+                </div>
+
+                <!-- Country -->
+                <div>
+                    <label for="supplierCountryInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Country
+                    </label>
+                    <input 
+                        type="text" 
+                        id="supplierCountryInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                        readonly
+                    >
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase Order Details / Line Items Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Purchase Order Details - Line Items</h2>
+                <button 
+                    type="button" 
+                    id="addItemBtn"
+                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                    + Add Item
+                </button>
+            </div>
+
+            <!-- Line Items Table -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Material</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Qty</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Unit</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Price</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Currency</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- First default row -->
+                        <tr class="po-line-row" data-line-index="1">
+                            <td class="px-4 py-3 text-sm text-gray-900">1</td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="text" 
+                                    id="materialIdInput-1"
+                                    name="lines[1][material_id]"
+                                    class="material-id-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="MAT-001"
+                                    required
+                                >
+                                <input type="hidden" class="material-id-hidden" id="materialIdHidden-1" name="lines[1][id_material]">
+                            </td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="text" 
+                                    id="materialDescInput-1"
+                                    class="description-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                                    readonly
+                                >
+                            </td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="number" 
+                                    id="qtyInput-1"
+                                    name="lines[1][quantity]"
+                                    value="1"
+                                    min="1"
+                                    class="qty-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                >
+                            </td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="text" 
+                                    id="unitInput-1"
+                                    class="unit-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                                    readonly
+                                >
+                                <input type="hidden" class="unit-id-input" id="unitIdInput-1" name="lines[1][unit_id]">
+                            </td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="number" 
+                                    id="priceInput-1"
+                                    name="lines[1][price]"
+                                    step="0.01"
+                                    min="0"
+                                    class="price-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                >
+                            </td>
+                            <td class="px-4 py-3">
+                                <input 
+                                    type="text" 
+                                    id="currencyInput-1"
+                                    class="currency-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                                    readonly
+                                >
+                                <input type="hidden" class="currency-id-input" id="currencyIdInput-1" name="lines[1][currency_id]">
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <button 
+                                    type="button"
+                                    class="text-red-600 hover:text-red-800 font-medium remove-line-btn"
+                                    onclick="removeLine(1)"
+                                >
+                                    ✕
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-4">
+            <button 
+                type="button"
+                onclick="window.history.back()"
+                class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+                Cancel
+            </button>
+            <button 
+                type="button"
+                id="createPurchaseOrderBtn"
+                class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+                Create Purchase Order
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables
+    let lineCounter = 1; // Starts at 1 since we have one default line
+    let supplierData = null;
+    let defaultCurrency = null;
+    let defaultCurrencyCode = null;
+    
+    // Initialize default currency
+    {% if currencies %}
+    defaultCurrency = {{ currencies.0.id|default:"null" }};
+    defaultCurrencyCode = "{{ currencies.0.code|default:"" }}";
+    {% endif %}
+
+    // ============================================
+    // SUPPLIER SEARCH LOGIC
+    // ============================================
+    document.getElementById('supplierSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const supplierId = this.value.trim();
             
-            tbody.appendChild(row);
+            if (!supplierId) {
+                alert('Please enter a supplier ID');
+                return;
+            }
             
-            // Hook for future JS: Add event listener to material_id field
-            const materialIdInput = row.querySelector('[data-field="material-id"]');
-            materialIdInput.addEventListener('blur', function() {
-                // TODO: Call material_detail_api and populate material fields
-                console.log('Material ID changed:', this.value);
+            searchSupplier(supplierId);
+        }
+    });
+
+    async function searchSupplier(supplierId) {
+        try {
+            const response = await fetch(`/purchases/api/supplier/details/${supplierId}/`);
+            
+            if (!response.ok) {
+                throw new Error('Supplier not found');
+            }
+            
+            const data = await response.json();
+            supplierData = data;
+            
+            // Fill supplier master data fields
+            document.getElementById('supplierNameInput').value = data.name || '';
+            document.getElementById('supplierAddressInput').value = data.address || '';
+            document.getElementById('supplierCityInput').value = data.city || '';
+            document.getElementById('supplierStateInput').value = data.state_province || '';
+            document.getElementById('supplierCountryInput').value = data.country || '';
+            
+            // Store hidden values
+            document.getElementById('supplierIdHidden').value = data.supplier_id || '';
+            
+            // Show success message
+            showMessage('Supplier loaded successfully', 'success');
+            
+        } catch (error) {
+            // Clear supplier fields
+            clearSupplierFields();
+            supplierData = null;
+            showMessage('Supplier not found: ' + error.message, 'error');
+        }
+    }
+
+    function clearSupplierFields() {
+        document.getElementById('supplierNameInput').value = '';
+        document.getElementById('supplierAddressInput').value = '';
+        document.getElementById('supplierCityInput').value = '';
+        document.getElementById('supplierStateInput').value = '';
+        document.getElementById('supplierCountryInput').value = '';
+        document.getElementById('supplierIdHidden').value = '';
+    }
+
+    // ============================================
+    // MATERIAL SEARCH LOGIC (DELEGACIÓN DE EVENTOS)
+    // ============================================
+    // Usar delegación de eventos para manejar Enter en TODAS las líneas
+    document.addEventListener('keydown', async function(event) {
+        // Verificar si es Enter y si el target es un input de material
+        if (event.key === 'Enter' && event.target.classList.contains('material-id-input')) {
+            event.preventDefault();
+            
+            const materialInput = event.target;
+            const materialId = materialInput.value.trim();
+            
+            if (!materialId) {
+                alert('Please enter a material ID');
+                return;
+            }
+            
+            // Encontrar la fila que contiene este input
+            const row = materialInput.closest('.po-line-row');
+            if (!row) {
+                console.error('Could not find parent row');
+                return;
+            }
+            
+            const lineIndex = row.getAttribute('data-line-index');
+            await searchMaterial(materialId, lineIndex, row);
+        }
+    });
+
+    async function searchMaterial(materialId, lineIndex, row) {
+        try {
+            const response = await fetch(`/purchases/api/material/details/${materialId}/`);
+            
+            if (!response.ok) {
+                throw new Error('Material not found');
+            }
+            
+            const data = await response.json();
+            
+            // Fill material fields in the line usando querySelector en la fila
+            const descInput = row.querySelector('.description-input');
+            const unitInput = row.querySelector('.unit-input');
+            const unitIdInput = row.querySelector('.unit-id-input');
+            const materialIdHidden = row.querySelector('.material-id-hidden');
+            const currencyInput = row.querySelector('.currency-input');
+            const currencyIdInput = row.querySelector('.currency-id-input');
+            
+            if (descInput) descInput.value = data.name || '';
+            if (unitInput) unitInput.value = data.default_unit || '';
+            if (unitIdInput) unitIdInput.value = data.default_unit_id || '';
+            if (materialIdHidden) materialIdHidden.value = data.id_material || materialId;
+            
+            // Set default currency if not already set
+            if (currencyIdInput && currencyInput) {
+                if ((!currencyIdInput.value || currencyIdInput.value === '') && defaultCurrency) {
+                    currencyIdInput.value = defaultCurrency;
+                    currencyInput.value = defaultCurrencyCode;
+                }
+            }
+            
+            showMessage(`Material ${data.id_material || data.material_code} loaded`, 'success');
+            
+        } catch (error) {
+            // Clear material fields for this line
+            clearMaterialFields(lineIndex);
+            showMessage(`Material not found in line ${lineIndex}: ` + error.message, 'error');
+        }
+    }
+
+    function clearMaterialFields(lineIndex) {
+        document.getElementById(`materialDescInput-${lineIndex}`).value = '';
+        document.getElementById(`unitInput-${lineIndex}`).value = '';
+        document.getElementById(`unitIdInput-${lineIndex}`).value = '';
+        document.getElementById(`materialIdHidden-${lineIndex}`).value = '';
+        document.getElementById(`currencyInput-${lineIndex}`).value = '';
+        document.getElementById(`currencyIdInput-${lineIndex}`).value = '';
+    }
+
+    // ============================================
+    // ADD / REMOVE LINE ITEMS LOGIC
+    // ============================================
+    document.getElementById('addItemBtn').addEventListener('click', function() {
+        lineCounter++;
+        addNewLine(lineCounter);
+    });
+
+    function addNewLine(index) {
+        const tbody = document.getElementById('lineItemsTableBody');
+        const newRow = document.createElement('tr');
+        newRow.className = 'po-line-row';
+        newRow.setAttribute('data-line-index', index);
+        
+        newRow.innerHTML = `
+            <td class="px-4 py-3 text-sm text-gray-900">${index}</td>
+            <td class="px-4 py-3">
+                <input 
+                    type="text" 
+                    id="materialIdInput-${index}"
+                    name="lines[${index}][material_id]"
+                    placeholder="Enter material code"
+                    class="material-id-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                >
+                <input type="hidden" class="material-id-hidden" id="materialIdHidden-${index}" name="lines[${index}][id_material]">
+            </td>
+            <td class="px-4 py-3">
+                <input 
+                    type="text" 
+                    id="materialDescInput-${index}"
+                    class="description-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                    readonly
+                >
+            </td>
+            <td class="px-4 py-3">
+                <input 
+                    type="number" 
+                    id="qtyInput-${index}"
+                    name="lines[${index}][quantity]"
+                    value="1"
+                    min="1"
+                    class="qty-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                >
+            </td>
+            <td class="px-4 py-3">
+                <input 
+                    type="text" 
+                    id="unitInput-${index}"
+                    class="unit-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                    readonly
+                >
+                <input type="hidden" class="unit-id-input" id="unitIdInput-${index}" name="lines[${index}][unit_id]">
+            </td>
+            <td class="px-4 py-3">
+                <input 
+                    type="number" 
+                    id="priceInput-${index}"
+                    name="lines[${index}][price]"
+                    step="0.01"
+                    min="0"
+                    class="price-input w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                >
+            </td>
+            <td class="px-4 py-3">
+                <input 
+                    type="text" 
+                    id="currencyInput-${index}"
+                    class="currency-input w-full px-2 py-1 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                    readonly
+                >
+                <input type="hidden" class="currency-id-input" id="currencyIdInput-${index}" name="lines[${index}][currency_id]">
+            </td>
+            <td class="px-4 py-3 text-center">
+                <button 
+                    type="button"
+                    class="text-red-600 hover:text-red-800 font-medium remove-line-btn"
+                    onclick="removeLine(${index})"
+                >
+                    ✕
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(newRow);
+        
+        // Set default currency for new line
+        if (defaultCurrency) {
+            document.getElementById(`currencyIdInput-${index}`).value = defaultCurrency;
+            document.getElementById(`currencyInput-${index}`).value = defaultCurrencyCode;
+        }
+    }
+
+    function removeLine(lineIndex) {
+        const row = document.querySelector(`.po-line-row[data-line-index="${lineIndex}"]`);
+        if (row) {
+            // Check if it's the last line
+            const allRows = document.querySelectorAll('.po-line-row');
+            if (allRows.length === 1) {
+                alert('Cannot remove the last line item');
+                return;
+            }
+            row.remove();
+        }
+    }
+
+    // ============================================
+    // CREATE PURCHASE ORDER LOGIC
+    // ============================================
+    document.getElementById('createPurchaseOrderBtn').addEventListener('click', async function() {
+        // Validate supplier
+        if (!supplierData || !document.getElementById('supplierIdHidden').value) {
+            showMessage('Please search and select a supplier first', 'error');
+            return;
+        }
+        
+        // Validate delivery date
+        const deliveryDate = document.getElementById('deliveryDateInput').value;
+        if (!deliveryDate) {
+            showMessage('Please select an estimated delivery date', 'error');
+            return;
+        }
+        
+        // Collect and validate line items usando querySelector con clases
+        const lines = [];
+        const lineRows = document.querySelectorAll('.po-line-row');
+        
+        if (lineRows.length === 0) {
+            showMessage('Please add at least one line item', 'error');
+            return;
+        }
+        
+        let hasErrors = false;
+        
+        lineRows.forEach((row, idx) => {
+            const lineIndex = row.getAttribute('data-line-index');
+            
+            // Get material_id using querySelector on the row
+            const materialInput = row.querySelector('.material-id-input');
+            const materialIdHidden = row.querySelector('.material-id-hidden');
+            const qtyInput = row.querySelector('.qty-input');
+            const unitIdInput = row.querySelector('.unit-id-input');
+            const priceInput = row.querySelector('.price-input');
+            const currencyIdInput = row.querySelector('.currency-id-input');
+            
+            // Get values
+            const materialId = (materialIdHidden && materialIdHidden.value.trim()) || (materialInput && materialInput.value.trim()) || '';
+            const quantity = qtyInput ? parseFloat(qtyInput.value) : 0;
+            const unitId = unitIdInput ? unitIdInput.value : '';
+            const price = priceInput ? parseFloat(priceInput.value) : 0;
+            const currencyId = currencyIdInput ? currencyIdInput.value : '';
+            
+            // Validate line
+            if (!materialId) {
+                showMessage(`Line ${parseInt(lineIndex)}: Material ID is required`, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            if (!unitId) {
+                showMessage(`Line ${parseInt(lineIndex)}: Please search material to load unit information`, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            if (isNaN(quantity) || quantity <= 0) {
+                showMessage(`Line ${parseInt(lineIndex)}: Quantity must be greater than 0`, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            if (isNaN(price) || price < 0) {
+                showMessage(`Line ${parseInt(lineIndex)}: Price must be 0 or greater`, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            if (!currencyId) {
+                showMessage(`Line ${parseInt(lineIndex)}: Currency is required`, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            lines.push({
+                material_id: materialId,
+                quantity: parseInt(quantity),
+                unit_id: parseInt(unitId),
+                price: price,
+                currency_id: parseInt(currencyId)
             });
         });
+        
+        if (hasErrors) {
+            return;
+        }
+        
+        // Build the payload
+        const payload = {
+            supplier_id: document.getElementById('supplierIdHidden').value,
+            estimated_delivery_date: deliveryDate,
+            lines: lines
+        };
+        
+        console.log('Sending payload:', payload);
+        
+        // Send to API
+        try {
+            const response = await fetch('/purchases/api/purchase-order/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showMessage(`Purchase Order created successfully! ID: ${result.purchase_order_id}`, 'success');
+                
+                // Optional: Reset form or redirect
+                setTimeout(() => {
+                    if (confirm('Purchase order created. Do you want to create another one?')) {
+                        location.reload();
+                    } else {
+                        window.history.back();
+                    }
+                }, 2000);
+            } else {
+                showMessage('Error creating purchase order: ' + (result.error || 'Unknown error'), 'error');
+            }
+            
+        } catch (error) {
+            showMessage('Network error: ' + error.message, 'error');
+            console.error('Error:', error);
+        }
+    });
 
-        // Hook for supplier ID field
-        document.getElementById('id_supplier').addEventListener('blur', function() {
-            // TODO: Call supplier_detail_api and populate supplier fields
-            console.log('Supplier ID changed:', this.value);
-        });
+    // ============================================
+    // UTILITY FUNCTIONS
+    // ============================================
+    function showMessage(message, type) {
+        // Remove existing messages
+        const existingMsg = document.getElementById('flashMessage');
+        if (existingMsg) {
+            existingMsg.remove();
+        }
+        
+        // Create new message
+        const msgDiv = document.createElement('div');
+        msgDiv.id = 'flashMessage';
+        msgDiv.className = `fixed top-20 right-6 px-6 py-4 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        } text-white`;
+        msgDiv.textContent = message;
+        
+        document.body.appendChild(msgDiv);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            msgDiv.remove();
+        }, 5000);
+    }
 
-        // Form submission (placeholder)
-        document.getElementById('purchaseOrderForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            // TODO: Implement form submission logic
-            console.log('Form submitted');
-        });
-    </script>
-</body>
-</html>
+    // ============================================
+    // INITIALIZE ON PAGE LOAD
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Purchase Order Form initialized');
+        
+        // Set default currency for first line
+        if (defaultCurrency) {
+            document.getElementById('currencyIdInput-1').value = defaultCurrency;
+            document.getElementById('currencyInput-1').value = defaultCurrencyCode;
+        }
+    });
+</script>
+{% endblock %}
