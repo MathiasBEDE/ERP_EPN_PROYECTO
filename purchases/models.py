@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum, F
 from users.models import User
 from suppliers.models import Supplier
 from materials.models import Material, Unit
@@ -38,6 +39,18 @@ class PurchaseOrder(models.Model):
     
     def __str__(self):
         return f"{self.id_purchase_order} - {self.supplier.name}"
+    
+    def get_total_amount(self):
+        """
+        Calcula el monto total de la orden sumando precio * cantidad de todas las líneas.
+        
+        Returns:
+            Decimal: Total de la orden o 0 si no hay líneas
+        """
+        total = self.lines.aggregate(
+            total=Sum(F('price') * F('quantity'), output_field=models.DecimalField())
+        )['total']
+        return total if total is not None else 0
 
 class PurchaseOrderLine(models.Model):
     id_purchase_order_line = models.CharField(max_length=50, unique=True)

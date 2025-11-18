@@ -1,14 +1,335 @@
-from django.shortcuts import render
-from django.http import JsonResponse, Http404
+from django.shortcuts import render, redirect
+from django.http import JsonResponse, Http404, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
+from django.db.models import Q
+from django.contrib import messages
+from django.core.paginator import Paginator
 from suppliers.models import Supplier
 from materials.models import Material
 from materials.models import Unit
 from core.models import Currency
 from .models import PurchaseOrder, PurchaseOrderLine, OrderStatus
+from inventory.utils import create_inventory_movements_for_purchase_order
+from inventory.models import InventoryLocation, MovementType
 from datetime import date
 import json
+import logging
+import csv
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+# Vista de detalle de orden de compra
+def purchase_order_detail_view(request, order_id):
+    """
+    Vista que muestra el detalle completo de una orden de compra.
+    También maneja las acciones de cambio de estado (Recibir, Cancelar, Cerrar).
+    
+    URL: /purchases/purchase-order/<order_id>/
+    Método: GET, POST
+    Parámetro: order_id es el identificador único de la orden (ej: PO-0001)
+    
+    Acciones POST:
+        - receive: Marca la orden como recibida y actualiza cantidades
+        - cancel: Cancela la orden
+        - close: Cierra la orden administrativamente
+    
+    Retorna:
+        - HTML con el detalle de la orden de compra
+        - 404 si la orden no existe
+    """
+    
+    # Mapeo de acciones a símbolos de estado (usar símbolos reales de la BD)
+    ACTION_STATUS_MAP = {
+        "receive": "RECEIVED",    # Fully Received
+        "cancel": "CANCELLED",    # Cancelled
+        "close": "CLOSED"         # Closed
+    }
+    
+    try:
+        # Obtener la orden con todas sus relaciones optimizadas
+        order = PurchaseOrder.objects.select_related(
+            'supplier', 
+            'status', 
+            'created_by'
+        ).prefetch_related(
+            'lines__material',
+            'lines__unit_material',
+            'lines__currency_supplier'
+        ).get(id_purchase_order=order_id)
+        
+        # Manejar acciones POST
+        if request.method == 'POST':
+            action = request.POST.get('action')
+            
+            # Validar que la acción sea válida
+            status_symbol = ACTION_STATUS_MAP.get(action)
+            if not status_symbol:
+                messages.error(request, 'Acción no válida.')
+                return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+            
+            # Obtener el estado destino
+            try:
+                new_status = OrderStatus.objects.get(symbol=status_symbol)
+            except OrderStatus.DoesNotExist:
+                messages.error(
+                    request,
+                    f'Estado "{status_symbol}" no encontrado en el sistema. '
+                    f'Por favor, verifique que el estado existe en la configuración.'
+                )
+                return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+            
+            # Aplicar lógica específica por acción
+            if action == 'receive':
+                # Solo permitir recibir si está en DRAFT o CONFIRMED
+                if order.status.symbol not in ['DRAFT', 'CONFIRMED']:
+                    messages.error(
+                        request, 
+                        f'No se puede recibir una orden en estado "{order.status.name}". '
+                        f'Debe estar en estado Draft o Confirmed.'
+                    )
+                    return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+                
+                # Marcar todas las líneas como totalmente recibidas y crear movimientos de inventario
+                try:
+                    with transaction.atomic():
+                        # Actualizar cantidades recibidas en todas las líneas
+                        for line in order.lines.all():
+                            line.received_quantity = line.quantity
+                            line.save()
+                        
+                        # Cambiar estado a RECEIVED
+                        order.status = new_status
+                        order.save()
+                        
+                        # Crear movimientos de inventario
+                        created_movements = create_inventory_movements_for_purchase_order(
+                            order, 
+                            user=request.user if request.user.is_authenticated else None
+                        )
+                        
+                        num_movements = len(created_movements)
+                        messages.success(
+                            request, 
+                            f'Orden {order.id_purchase_order} marcada como recibida. '
+                            f'Se crearon {num_movements} movimiento(s) de inventario.'
+                        )
+                
+                except InventoryLocation.DoesNotExist:
+                    messages.error(
+                        request,
+                        'No se pudo actualizar el inventario: No hay ubicaciones de inventario configuradas. '
+                        'Contacte al administrador del sistema.'
+                    )
+                    logger.error(f'No inventory locations found when receiving order {order.id_purchase_order}')
+                    
+                except MovementType.DoesNotExist:
+                    messages.error(
+                        request,
+                        'No se pudo actualizar el inventario: Tipo de movimiento PURCHASE_IN no encontrado. '
+                        'Ejecute el comando init_movement_types.'
+                    )
+                    logger.error(f'MovementType PURCHASE_IN not found when receiving order {order.id_purchase_order}')
+                    
+                except Exception as e:
+                    messages.error(
+                        request,
+                        f'Error al actualizar inventario: {str(e)}. Contacte al administrador.'
+                    )
+                    logger.exception(f'Error creating inventory movements for order {order.id_purchase_order}')
+                
+                return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+            
+            elif action == 'cancel':
+                # Solo permitir cancelar si está en DRAFT o CONFIRMED
+                if order.status.symbol not in ['DRAFT', 'CONFIRMED']:
+                    messages.error(
+                        request, 
+                        f'No se puede cancelar una orden en estado "{order.status.name}". '
+                        f'Solo se pueden cancelar órdenes en Draft o Confirmed.'
+                    )
+                    return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+                
+                with transaction.atomic():
+                    order.status = new_status
+                    order.save()
+                
+                messages.success(
+                    request, 
+                    f'Orden {order.id_purchase_order} cancelada exitosamente.'
+                )
+                return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+            
+            elif action == 'close':
+                # Solo permitir cerrar si está RECEIVED
+                if order.status.symbol != 'RECEIVED':
+                    messages.error(
+                        request, 
+                        f'Solo se puede cerrar una orden en estado "Fully Received". '
+                        f'Estado actual: {order.status.name}.'
+                    )
+                    return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+                
+                with transaction.atomic():
+                    order.status = new_status
+                    order.save()
+                
+                messages.success(
+                    request, 
+                    f'Orden {order.id_purchase_order} cerrada exitosamente.'
+                )
+                return redirect('purchases:purchase_order_detail', order_id=order.id_purchase_order)
+        
+        # Determinar qué acciones están disponibles según el estado actual
+        available_actions = {
+            'can_receive': order.status.symbol in ['DRAFT', 'CONFIRMED'],
+            'can_cancel': order.status.symbol in ['DRAFT', 'CONFIRMED'],
+            'can_close': order.status.symbol == 'RECEIVED',
+        }
+        
+        context = {
+            'order': order,
+            'available_actions': available_actions,
+        }
+        
+        return render(request, 'purchases/purchase_order_detail.html', context)
+        
+    except PurchaseOrder.DoesNotExist:
+        raise Http404(f"Orden de compra '{order_id}' no encontrada")
+
+# Vista de lista de órdenes de compra
+def purchase_order_list_view(request):
+    """
+    Vista que muestra la lista de todas las órdenes de compra con filtros y paginación.
+    También permite exportar los resultados a CSV.
+    
+    URL: /purchases/purchase-order/
+    Método: GET
+    
+    Filtros opcionales (GET):
+        - q: Buscar por ID de orden (PO-0001)
+        - supplier: Filtrar por ID de proveedor
+        - status: Filtrar por símbolo de estado
+        - date_from: Fecha de emisión desde (YYYY-MM-DD)
+        - date_to: Fecha de emisión hasta (YYYY-MM-DD)
+        - page: Número de página para paginación
+        - export: Si es "csv", exporta los resultados filtrados a CSV
+    
+    Retorna:
+        - HTML con la lista paginada de órdenes de compra
+        - CSV descargable si export=csv
+    """
+    # Obtener todas las órdenes con sus relaciones optimizadas
+    orders = PurchaseOrder.objects.select_related('supplier', 'status', 'created_by').all()
+    
+    # Leer parámetros de filtro
+    q = request.GET.get('q', '').strip()
+    supplier_id = request.GET.get('supplier', '').strip()
+    status_symbol = request.GET.get('status', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    export_format = request.GET.get('export', '').strip()
+    
+    # Aplicar filtros condicionalmente
+    if q:
+        # Buscar por ID de orden o nombre de proveedor
+        orders = orders.filter(
+            Q(id_purchase_order__icontains=q) |
+            Q(supplier__name__icontains=q)
+        )
+    
+    if supplier_id:
+        # Filtrar por ID de proveedor (id_supplier field)
+        orders = orders.filter(supplier__id_supplier__icontains=supplier_id)
+    
+    if status_symbol:
+        # Filtrar por símbolo de estado
+        orders = orders.filter(status__symbol=status_symbol)
+    
+    if date_from:
+        # Filtrar desde fecha de emisión
+        try:
+            orders = orders.filter(issue_date__gte=date_from)
+        except ValueError:
+            messages.warning(request, 'Formato de fecha "Desde" inválido.')
+    
+    if date_to:
+        # Filtrar hasta fecha de emisión
+        try:
+            orders = orders.filter(issue_date__lte=date_to)
+        except ValueError:
+            messages.warning(request, 'Formato de fecha "Hasta" inválido.')
+    
+    # Ordenar por fecha de creación descendente (más recientes primero)
+    orders = orders.order_by('-created_at')
+    
+    # Si se solicita exportación CSV, generar el archivo
+    if export_format == 'csv':
+        # Preparar respuesta CSV
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="ordenes_compra.csv"'
+        
+        # Escribir BOM para UTF-8 (ayuda a Excel a detectar encoding)
+        response.write('\ufeff')
+        
+        writer = csv.writer(response)
+        
+        # Escribir encabezados
+        writer.writerow([
+            'ID Orden',
+            'Proveedor ID',
+            'Proveedor Nombre',
+            'Estado',
+            'Fecha Emisión',
+            'Fecha Estimada Entrega',
+            'Total Orden (USD)',
+            'Creado Por',
+            'Fecha Creación'
+        ])
+        
+        # Escribir filas de datos
+        for order in orders:
+            writer.writerow([
+                order.id_purchase_order,
+                order.supplier.id_supplier,
+                order.supplier.name,
+                order.status.name,
+                order.issue_date.strftime('%Y-%m-%d') if order.issue_date else '',
+                order.estimated_delivery_date.strftime('%Y-%m-%d') if order.estimated_delivery_date else '',
+                f'{order.get_total_amount():.2f}',
+                order.created_by.username if order.created_by else '',
+                order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else ''
+            ])
+        
+        return response
+    
+    # Aplicar paginación (10 órdenes por página)
+    paginator = Paginator(orders, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Obtener listas para los selectores de filtro
+    statuses = OrderStatus.objects.all().order_by('name')
+    suppliers = Supplier.objects.all().order_by('name')
+    
+    # Preparar contexto
+    context = {
+        'page_obj': page_obj,
+        'orders': page_obj.object_list,
+        'statuses': statuses,
+        'suppliers': suppliers,
+        'filters': {
+            'q': q,
+            'supplier': supplier_id,
+            'status': status_symbol,
+            'date_from': date_from,
+            'date_to': date_to,
+        },
+        'total_count': paginator.count,
+    }
+    
+    return render(request, 'purchases/purchase_order_list.html', context)
 
 # Vista del formulario de creación de pedido de compra
 def purchase_order_form_view(request):
@@ -170,18 +491,13 @@ def create_purchase_order_api(request):
         except Supplier.DoesNotExist:
             return JsonResponse({'error': f'Supplier with id {supplier_id} does not exist'}, status=400)
         
-        # Obtener el estado por defecto (buscar "Borrador" o usar el primero disponible)
+        # Obtener el estado por defecto (DRAFT)
         try:
-            # Intentar obtener el estado "Borrador" primero
-            default_status = OrderStatus.objects.get(symbol='BOR')
+            default_status = OrderStatus.objects.get(symbol='DRAFT')
         except OrderStatus.DoesNotExist:
-            try:
-                # Si no existe "Borrador", intentar id=1 o el primer estado disponible
-                default_status = OrderStatus.objects.get(id=1)
-            except OrderStatus.DoesNotExist:
-                default_status = OrderStatus.objects.first()
-                if not default_status:
-                    return JsonResponse({'error': 'No order status found in database'}, status=400)
+            return JsonResponse({
+                'error': 'Estado "DRAFT" no encontrado. Por favor, cree el estado DRAFT en el sistema.'
+            }, status=400)
         
         # Generar el siguiente id_purchase_order
         # Buscar el último pedido y sumar 1
