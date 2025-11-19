@@ -4,6 +4,7 @@ from users.models import User
 from suppliers.models import Supplier
 from materials.models import Material, Unit
 from accounting.models import Currency
+from inventory.models import InventoryLocation
 
 class OrderStatus(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -27,6 +28,7 @@ class PurchaseOrder(models.Model):
     issue_date = models.DateField()
     estimated_delivery_date = models.DateField()
     status = models.ForeignKey(OrderStatus, on_delete=models.PROTECT)
+    destination_location = models.ForeignKey(InventoryLocation, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_orders')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

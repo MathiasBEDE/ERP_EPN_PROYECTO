@@ -23,6 +23,7 @@ class Role(models.Model):
     purchases = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
     sales = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
     inventory = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
+    manufacturing = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
     accounting = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
     reporting = models.IntegerField(choices=PERMISSION_CHOICES, default=0)
     

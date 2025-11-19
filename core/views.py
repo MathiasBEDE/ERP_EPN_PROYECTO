@@ -19,6 +19,7 @@ def dashboard_view(request):
         "inventory": 0,
         "accounting": 0,
         "reporting": 0,
+        "manufacturing": 0,
     }
     
     roles = []
@@ -34,6 +35,7 @@ def dashboard_view(request):
         permissions["inventory"] = max(permissions["inventory"], getattr(role, 'inventory', 0))
         permissions["accounting"] = max(permissions["accounting"], getattr(role, 'accounting', 0))
         permissions["reporting"] = max(permissions["reporting"], getattr(role, 'reporting', 0))
+        permissions["manufacturing"] = max(permissions["manufacturing"], getattr(role, 'manufacturing', 0))
     
     context = {
         "user": user,

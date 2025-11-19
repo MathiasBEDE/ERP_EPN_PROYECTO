@@ -9,6 +9,7 @@ This module provides helper functions for inventory operations including:
 
 from django.utils import timezone
 from django.db import transaction
+from django.core.exceptions import ValidationError
 from inventory.models import InventoryLocation, MovementType, InventoryMovement
 
 
@@ -70,8 +71,11 @@ def create_inventory_movements_for_purchase_order(purchase_order, user=None):
         MovementType.DoesNotExist: If PURCHASE_IN movement type doesn't exist.
     """
     
-    # Get the default location
-    location = get_default_inventory_location()
+    # Use destination_location if specified, otherwise use default location
+    if purchase_order.destination_location:
+        location = purchase_order.destination_location
+    else:
+        location = get_default_inventory_location()
     
     # Get the PURCHASE_IN movement type
     try:
@@ -110,7 +114,7 @@ def create_inventory_movements_for_purchase_order(purchase_order, user=None):
         movement_id = f"INV-{timestamp}-{line.id}"
         
         # Create the inventory movement
-        movement = InventoryMovement.objects.create(
+        movement = InventoryMovement(
             id_inventory_movement=movement_id,
             location=location,
             material=line.material,
@@ -122,6 +126,151 @@ def create_inventory_movements_for_purchase_order(purchase_order, user=None):
             created_by=user
         )
         
-        created_movements.append(movement)
+        # Validar integridad antes de guardar
+        try:
+            movement.full_clean()
+            movement.save()
+            created_movements.append(movement)
+        except ValidationError as e:
+            # Si hay un error de validación en movimientos automáticos,
+            # registrar el error pero continuar con los demás
+            # En producción, podría loggearse o manejarse de otra forma
+            print(f"Error al crear movimiento para línea {line.id}: {e}")
+            continue
+    
+    return created_movements
+
+
+def create_inventory_movements_for_production_order(production_order, user=None):
+    """
+    Create inventory movements for a production order (work order) that has been completed.
+    
+    This function creates:
+    1. Output movements (PRODUCTION_OUT) for each component consumed from origin_location
+    2. Input movement (PRODUCTION_IN) for the finished product into destination_location
+    
+    To avoid duplicates, this function checks if movements already exist for
+    this production order reference before creating new ones.
+    
+    Args:
+        production_order: WorkOrder instance that has been completed.
+        user: User instance who is performing the action (optional).
+        
+    Returns:
+        list: List of created InventoryMovement instances.
+        
+    Raises:
+        InventoryLocation.DoesNotExist: If origin or destination location is not set.
+        MovementType.DoesNotExist: If PRODUCTION_IN/OUT movement types don't exist.
+    """
+    
+    # Validar que las ubicaciones estén definidas
+    if not production_order.origin_location:
+        raise ValueError(
+            "origin_location no está definido en la orden de producción. "
+            "Se requiere una ubicación de origen para descontar componentes."
+        )
+    
+    if not production_order.destination_location:
+        raise ValueError(
+            "destination_location no está definido en la orden de producción. "
+            "Se requiere una ubicación de destino para el producto terminado."
+        )
+    
+    # Get or create the PRODUCTION_OUT movement type
+    try:
+        mt_out = MovementType.objects.get(symbol='PRODUCTION_OUT')
+    except MovementType.DoesNotExist:
+        mt_out = MovementType.objects.create(
+            name='Consumo en Producción',
+            symbol='PRODUCTION_OUT'
+        )
+    
+    # Get or create the PRODUCTION_IN movement type
+    try:
+        mt_in = MovementType.objects.get(symbol='PRODUCTION_IN')
+    except MovementType.DoesNotExist:
+        mt_in = MovementType.objects.create(
+            name='Producto Terminado',
+            symbol='PRODUCTION_IN'
+        )
+    
+    # Check if movements already exist for this production order to avoid duplicates
+    existing_movements = InventoryMovement.objects.filter(
+        reference=production_order.id_work_order
+    ).exists()
+    
+    if existing_movements:
+        # Movements already exist, don't create duplicates
+        return []
+    
+    created_movements = []
+    
+    # Use transaction to ensure atomicity
+    with transaction.atomic():
+        timestamp = timezone.now().strftime('%Y%m%d-%H%M%S')
+        
+        # Create output movements for each component (PRODUCTION_OUT)
+        for line in production_order.bill_of_materials.lines.all():
+            quantity_consumed = line.quantity * production_order.quantity
+            
+            # Skip lines with zero quantity
+            if quantity_consumed <= 0:
+                continue
+            
+            # Generate unique ID for the movement
+            movement_id = f"INV-{timestamp}-OUT-{line.id}"
+            
+            # Create the inventory movement for component consumption
+            movement = InventoryMovement(
+                id_inventory_movement=movement_id,
+                location=production_order.origin_location,
+                material=line.component,
+                quantity=quantity_consumed,
+                unit_type=line.unit_component,
+                movement_type=mt_out,
+                movement_date=timezone.now(),
+                reference=production_order.id_work_order,
+                created_by=user
+            )
+            
+            # Validar integridad antes de guardar
+            try:
+                movement.full_clean()
+                movement.save()
+                created_movements.append(movement)
+            except ValidationError as e:
+                # Si hay un error de validación, propagar la excepción
+                # para que la transacción haga rollback
+                raise ValidationError(
+                    f"Error al crear movimiento de salida para componente {line.component.name}: {e}"
+                )
+        
+        # Create input movement for finished product (PRODUCTION_IN)
+        product = production_order.bill_of_materials.material
+        movement_id = f"INV-{timestamp}-IN-WO{production_order.id}"
+        
+        movement = InventoryMovement(
+            id_inventory_movement=movement_id,
+            location=production_order.destination_location,
+            material=product,
+            quantity=production_order.quantity,
+            unit_type=product.unit,
+            movement_type=mt_in,
+            movement_date=timezone.now(),
+            reference=production_order.id_work_order,
+            created_by=user
+        )
+        
+        # Validar integridad antes de guardar
+        try:
+            movement.full_clean()
+            movement.save()
+            created_movements.append(movement)
+        except ValidationError as e:
+            # Si hay un error de validación, propagar la excepción
+            raise ValidationError(
+                f"Error al crear movimiento de entrada para producto {product.name}: {e}"
+            )
     
     return created_movements

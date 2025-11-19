@@ -342,8 +342,11 @@ def purchase_order_form_view(request):
     Retorna:
         - HTML con el formulario de creación de pedido
     """
+    from inventory.models import InventoryLocation
+    
     context = {
         'currencies': Currency.objects.all().order_by('code'),
+        'locations': InventoryLocation.objects.filter(status=True).order_by('name'),
         'today': date.today().strftime('%Y-%m-%d'),
     }
     
@@ -474,6 +477,7 @@ def create_purchase_order_api(request):
         # Validar presencia de campos requeridos
         supplier_id = data.get('supplier_id')
         estimated_delivery_date = data.get('estimated_delivery_date')
+        destination_location_id = data.get('destination_location_id')
         lines = data.get('lines', [])
         
         if not supplier_id:
@@ -490,6 +494,15 @@ def create_purchase_order_api(request):
             supplier = Supplier.objects.get(id=supplier_id)
         except Supplier.DoesNotExist:
             return JsonResponse({'error': f'Supplier with id {supplier_id} does not exist'}, status=400)
+        
+        # Validar la ubicación de destino si se proporciona
+        destination_location = None
+        if destination_location_id:
+            from inventory.models import InventoryLocation
+            try:
+                destination_location = InventoryLocation.objects.get(id=destination_location_id)
+            except InventoryLocation.DoesNotExist:
+                return JsonResponse({'error': f'Location with id {destination_location_id} does not exist'}, status=400)
         
         # Obtener el estado por defecto (DRAFT)
         try:
@@ -521,6 +534,7 @@ def create_purchase_order_api(request):
             issue_date=date.today(),
             estimated_delivery_date=estimated_delivery_date,
             status=default_status,
+            destination_location=destination_location,
             created_by=request.user if request.user.is_authenticated else None
         )
         

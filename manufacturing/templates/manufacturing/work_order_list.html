@@ -1,0 +1,170 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Órdenes de Producción</h1>
+        <a href="{% url 'manufacturing:work_order_new' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+            + Nueva Orden
+        </a>
+    </div>
+
+    <!-- Mostrar mensajes flash de éxito/error -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded {% if message.tags == 'success' %}bg-green-100 text-green-800{% elif message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tablero de órdenes por estado -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Columna Borrador -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span class="bg-gray-200 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center mr-2 text-sm">
+                    {{ draft_orders.count }}
+                </span>
+                Borrador
+            </h2>
+            <div class="space-y-3">
+                {% for order in draft_orders %}
+                <div class="bg-white border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="mb-3">
+                        <p class="font-semibold text-gray-900">{{ order.id_work_order }}</p>
+                        <p class="text-sm text-gray-600">{{ order.bill_of_materials.material.name }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Cantidad: {{ order.quantity }}</p>
+                    </div>
+                    <!-- Botón para iniciar producción -->
+                    <form method="post" class="inline mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="start">
+                        <input type="hidden" name="work_order_id" value="{{ order.id_work_order }}">
+                        <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium px-3 py-2 rounded transition-colors">
+                            ▶ Iniciar Producción
+                        </button>
+                    </form>
+                    <!-- Botón para cancelar -->
+                    <form method="post" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="work_order_id" value="{{ order.id_work_order }}">
+                        <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-2 rounded transition-colors" onclick="return confirm('¿Está seguro de cancelar esta orden?')">
+                            ✕ Cancelar
+                        </button>
+                    </form>
+                </div>
+                {% empty %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p class="text-sm text-gray-500">No hay órdenes en borrador</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Columna En Proceso -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span class="bg-indigo-100 text-indigo-700 rounded-full w-8 h-8 flex items-center justify-center mr-2 text-sm">
+                    {{ in_progress_orders.count }}
+                </span>
+                En Proceso
+            </h2>
+            <div class="space-y-3">
+                {% for order in in_progress_orders %}
+                <div class="bg-white border-2 border-indigo-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="mb-3">
+                        <p class="font-semibold text-gray-900">{{ order.id_work_order }}</p>
+                        <p class="text-sm text-gray-600">{{ order.bill_of_materials.material.name }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Cantidad: {{ order.quantity }}</p>
+                        <span class="inline-block mt-2 bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-1 rounded">
+                            🔧 En producción
+                        </span>
+                    </div>
+                    <!-- Botón para terminar producción -->
+                    <form method="post" class="inline mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="finish">
+                        <input type="hidden" name="work_order_id" value="{{ order.id_work_order }}">
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-2 rounded transition-colors">
+                            ✓ Terminar Producción
+                        </button>
+                    </form>
+                    <!-- Botón para cancelar orden en proceso -->
+                    <form method="post" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="work_order_id" value="{{ order.id_work_order }}">
+                        <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-2 rounded transition-colors" onclick="return confirm('¿Está seguro de cancelar esta orden? Se revertirán los movimientos de inventario.')">
+                            ✕ Cancelar
+                        </button>
+                    </form>
+                </div>
+                {% empty %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p class="text-sm text-gray-500">No hay órdenes en proceso</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Columna Terminadas -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-2 text-sm">
+                    {{ done_orders.count }}
+                </span>
+                Terminadas
+            </h2>
+            <div class="space-y-3">
+                {% for order in done_orders %}
+                <div class="bg-white border-2 border-green-300 rounded-lg p-4 shadow-sm">
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ order.id_work_order }}</p>
+                        <p class="text-sm text-gray-600">{{ order.bill_of_materials.material.name }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Cantidad: {{ order.quantity }}</p>
+                        <span class="inline-block mt-2 bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-full">
+                            ✓ Completado
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p class="text-sm text-gray-500">No hay órdenes terminadas</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Columna Canceladas -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span class="bg-red-100 text-red-700 rounded-full w-8 h-8 flex items-center justify-center mr-2 text-sm">
+                    {{ cancelled_orders.count }}
+                </span>
+                Canceladas
+            </h2>
+            <div class="space-y-3">
+                {% for order in cancelled_orders %}
+                <div class="bg-white border-2 border-red-300 rounded-lg p-4 shadow-sm">
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ order.id_work_order }}</p>
+                        <p class="text-sm text-gray-600">{{ order.bill_of_materials.material.name }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Cantidad: {{ order.quantity }}</p>
+                        <span class="inline-block mt-2 bg-red-100 text-red-700 text-xs font-semibold px-2 py-1 rounded-full">
+                            ✕ Cancelada
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p class="text-sm text-gray-500">No hay órdenes canceladas</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

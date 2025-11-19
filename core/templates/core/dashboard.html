@@ -109,7 +109,25 @@
                 <p class="text-sm text-gray-600 mb-4">
                     {% if permissions.inventory == 1 %}Solo visualizar{% elif permissions.inventory == 2 %}Leer y escribir{% endif %}
                 </p>
-                <a href="#" class="mt-auto bg-purple-500 hover:bg-purple-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                <a href="{% url 'inventory:inventory_dashboard' %}" class="mt-auto bg-purple-500 hover:bg-purple-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                    Acceder
+                </a>
+            </div>
+            {% endif %}
+            
+            {% if permissions.manufacturing > 0 %}
+            <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+                <div class="flex items-center mb-4">
+                    <svg class="h-8 w-8 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Manufactura</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    {% if permissions.manufacturing == 1 %}Solo visualizar{% elif permissions.manufacturing == 2 %}Leer y escribir{% endif %}
+                </p>
+                <a href="{% url 'manufacturing:work_order_list' %}" class="mt-auto bg-pink-500 hover:bg-pink-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
                     Acceder
                 </a>
             </div>

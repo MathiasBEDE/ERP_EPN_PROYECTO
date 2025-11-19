@@ -1,0 +1,182 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard - Inventario{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Encabezado -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard de Inventario</h1>
+        <p class="mt-2 text-sm text-gray-600">
+            Gestión y control de movimientos, stock y ubicaciones de materiales
+        </p>
+    </div>
+
+    <!-- Tarjetas de Estadísticas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Total de Movimientos -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">
+                            Total de Movimientos
+                        </dt>
+                        <dd class="text-3xl font-semibold text-gray-900">
+                            {{ total_movements }}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ubicaciones Activas -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">
+                            Ubicaciones Activas
+                        </dt>
+                        <dd class="text-3xl font-semibold text-gray-900">
+                            {{ total_locations }}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acceso Rápido -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+            <h3 class="text-lg font-semibold mb-4">Acciones Rápidas</h3>
+            <div class="space-y-2">
+                <a href="{% url 'inventory:inventory_adjustment' %}" class="block bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-2 text-sm transition-colors">
+                    + Nuevo Ajuste
+                </a>
+                <a href="{% url 'inventory:inventory_stock' %}" class="block bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-2 text-sm transition-colors">
+                    📊 Ver Stock
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid de Secciones -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Movimientos Recientes -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Movimientos Recientes</h2>
+            </div>
+            <div class="p-6">
+                {% if recent_movements %}
+                    <div class="space-y-3">
+                        {% for movement in recent_movements %}
+                            <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">{{ movement.material.name }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        {{ movement.location.name }} · {{ movement.movement_date|date:"d/m/Y H:i" }}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm font-semibold {% if movement.movement_type.symbol|slice:'-4:' == '_OUT' %}text-red-600{% else %}text-green-600{% endif %}">
+                                        {% if movement.movement_type.symbol|slice:"-4:" == "_OUT" %}-{% endif %}{{ movement.quantity }} {{ movement.unit_type.symbol }}
+                                    </span>
+                                    <p class="text-xs text-gray-500">{{ movement.movement_type.name }}</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-4">
+                        <a href="{% url 'inventory:inventory_movement_list' %}" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                            Ver todos los movimientos →
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500">No hay movimientos registrados aún.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actividad por Ubicación -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Actividad por Ubicación</h2>
+            </div>
+            <div class="p-6">
+                {% if movements_by_location %}
+                    <div class="space-y-3">
+                        {% for location in movements_by_location %}
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-900">{{ location.location__name }}</span>
+                                <span class="text-sm text-gray-600">{{ location.total_movements }} movimiento{{ location.total_movements|pluralize }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500">No hay datos de ubicaciones disponibles.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Navegación -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Kardex -->
+        <a href="{% url 'inventory:inventory_movement_list' %}" class="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-10 w-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Kardex</h3>
+                    <p class="text-sm text-gray-600">Historial de movimientos</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Stock Actual -->
+        <a href="{% url 'inventory:inventory_stock' %}" class="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Stock Actual</h3>
+                    <p class="text-sm text-gray-600">Existencias por ubicación</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Ajustes -->
+        <a href="{% url 'inventory:inventory_adjustment' %}" class="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-10 w-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Ajustes</h3>
+                    <p class="text-sm text-gray-600">Registrar entradas/salidas</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

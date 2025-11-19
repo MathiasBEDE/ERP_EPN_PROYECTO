@@ -30,6 +30,7 @@ def user_permissions(request):
         'inventory': 0,
         'accounting': 0,
         'reporting': 0,
+        'manufacturing': 0,
     }
     
     user_roles = UserRole.objects.select_related('role').filter(user=user)
@@ -44,5 +45,6 @@ def user_permissions(request):
         permissions['inventory'] = max(permissions['inventory'], getattr(role, 'inventory', 0))
         permissions['accounting'] = max(permissions['accounting'], getattr(role, 'accounting', 0))
         permissions['reporting'] = max(permissions['reporting'], getattr(role, 'reporting', 0))
+        permissions['manufacturing'] = max(permissions['manufacturing'], getattr(role, 'manufacturing', 0))
     
     return {'perms': permissions}
