@@ -234,25 +234,57 @@
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Acciones</h2>
         <div class="flex space-x-4">
             {% if can_post %}
-            <button onclick="alert('Funcionalidad de contabilizar disponible en Admin')" 
-                    class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors">
-                Contabilizar Asiento
-            </button>
+            <form method="POST" onsubmit="return confirm('¿Está seguro de contabilizar este asiento? Esta acción actualizará los saldos de las cuentas y NO se podrá modificar el asiento.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="post">
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors font-medium">
+                    ✓ Contabilizar Asiento
+                </button>
+            </form>
             {% endif %}
             
             {% if can_cancel %}
-            <button onclick="alert('Funcionalidad de anular disponible en Admin')" 
-                    class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors">
-                Anular Asiento
-            </button>
+            <form method="POST" onsubmit="return confirm('¿Está seguro de anular este asiento? Esta acción revertirá los saldos de las cuentas y NO se podrá revertir.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors font-medium">
+                    ✗ Anular Asiento
+                </button>
+            </form>
             {% endif %}
-        </div>
-        <p class="text-sm text-gray-600 mt-4">
-            <strong>Nota:</strong> Para contabilizar o anular asientos, use el panel de administración: 
-            <a href="/admin/accounting/journalentry/{{ entry.pk }}/change/" class="text-blue-600 hover:underline" target="_blank">
-                Ir al Admin
+            
+            <a href="/admin/accounting/journalentry/{{ entry.pk }}/change/" 
+               class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-lg transition-colors font-medium"
+               target="_blank">
+                Ver en Admin
             </a>
-        </p>
+        </div>
+        
+        {% if can_post %}
+        <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 class="text-sm font-semibold text-blue-900 mb-2">📋 ¿Qué hace "Contabilizar"?</h3>
+            <ul class="text-sm text-blue-800 space-y-1 ml-4 list-disc">
+                <li>Cambia el estado del asiento de <strong>BORRADOR</strong> → <strong>CONTABILIZADO</strong></li>
+                <li>Actualiza automáticamente los saldos (<code>current_balance</code>) de todas las cuentas afectadas</li>
+                <li>El asiento ya NO se podrá modificar o eliminar (solo anular)</li>
+                <li>Aparecerá en reportes financieros oficiales (Balance General, Estado de Resultados)</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if can_cancel %}
+        <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 class="text-sm font-semibold text-yellow-900 mb-2">⚠️ ¿Qué hace "Anular"?</h3>
+            <ul class="text-sm text-yellow-800 space-y-1 ml-4 list-disc">
+                <li>Cambia el estado del asiento de <strong>CONTABILIZADO</strong> → <strong>ANULADO</strong></li>
+                <li>Revierte automáticamente los saldos de todas las cuentas afectadas</li>
+                <li>El asiento permanece en el sistema para auditoría pero ya no afecta reportes</li>
+                <li>Esta operación NO se puede deshacer</li>
+            </ul>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

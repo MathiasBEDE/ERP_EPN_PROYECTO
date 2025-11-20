@@ -2,8 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.db import transaction
+from django.core.exceptions import ValidationError
 from .models import JournalEntry, JournalEntryLine
+from .utils import update_account_balances_from_entry
 from datetime import datetime, date
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def journal_entry_list_view(request):
@@ -110,6 +116,10 @@ def journal_entry_detail_view(request, id_journal_entry):
     - Tabla de líneas con cuenta, descripción, debe, haber
     - Totales de debe y haber
     - Estado de balance
+    
+    También maneja las acciones POST:
+    - contabilizar: Cambia estado a POSTED y actualiza saldos
+    - anular: Cambia estado a CANCELLED y revierte saldos
     """
     entry = get_object_or_404(
         JournalEntry.objects.select_related(
@@ -122,6 +132,101 @@ def journal_entry_detail_view(request, id_journal_entry):
         id_journal_entry=id_journal_entry
     )
     
+    # Manejar acciones POST
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'post':
+            # CONTABILIZAR ASIENTO
+            try:
+                with transaction.atomic():
+                    # Verificar que esté en DRAFT
+                    if entry.status != 'DRAFT':
+                        messages.error(
+                            request,
+                            f'No se puede contabilizar un asiento en estado {entry.get_status_display()}'
+                        )
+                        return redirect('accounting:journal_entry_detail', id_journal_entry=entry.id_journal_entry)
+                    
+                    # Contabilizar (cambia a POSTED)
+                    entry.post()
+                    
+                    # Actualizar saldos de cuentas
+                    try:
+                        updated_accounts = update_account_balances_from_entry(entry)
+                        logger.info(f'Asiento {entry.id_journal_entry} contabilizado. Cuentas actualizadas: {len(updated_accounts)}')
+                        
+                        messages.success(
+                            request,
+                            f'✓ Asiento {entry.id_journal_entry} contabilizado exitosamente. '
+                            f'Se actualizaron {len(updated_accounts)} cuenta(s).'
+                        )
+                    except Exception as e:
+                        logger.error(f'Error al actualizar saldos: {str(e)}')
+                        messages.warning(
+                            request,
+                            f'Asiento contabilizado pero hubo un error al actualizar saldos: {str(e)}'
+                        )
+                    
+            except ValidationError as e:
+                messages.error(request, f'Error: {str(e)}')
+            except Exception as e:
+                logger.error(f'Error al contabilizar asiento {entry.id_journal_entry}: {str(e)}')
+                messages.error(request, f'Error al contabilizar: {str(e)}')
+            
+            return redirect('accounting:journal_entry_detail', id_journal_entry=entry.id_journal_entry)
+        
+        elif action == 'cancel':
+            # ANULAR ASIENTO
+            try:
+                with transaction.atomic():
+                    # Verificar que esté en POSTED
+                    if entry.status != 'POSTED':
+                        messages.error(
+                            request,
+                            f'No se puede anular un asiento en estado {entry.get_status_display()}'
+                        )
+                        return redirect('accounting:journal_entry_detail', id_journal_entry=entry.id_journal_entry)
+                    
+                    # Revertir saldos ANTES de anular
+                    try:
+                        for line in entry.lines.select_related('account', 'account__nature'):
+                            account = line.account
+                            nature_symbol = account.nature.symbol
+                            
+                            # Revertir el cambio (operación inversa)
+                            if nature_symbol == 'DR':  # DEBIT
+                                balance_change = -(line.debit - line.credit)
+                            elif nature_symbol == 'CR':  # CREDIT
+                                balance_change = -(line.credit - line.debit)
+                            else:
+                                continue
+                            
+                            account.current_balance += balance_change
+                            account.save(update_fields=['current_balance', 'updated_at'])
+                        
+                        logger.info(f'Saldos revertidos para asiento {entry.id_journal_entry}')
+                    except Exception as e:
+                        logger.error(f'Error al revertir saldos: {str(e)}')
+                        raise ValidationError(f'Error al revertir saldos: {str(e)}')
+                    
+                    # Anular (cambia a CANCELLED)
+                    entry.cancel()
+                    
+                    messages.success(
+                        request,
+                        f'✓ Asiento {entry.id_journal_entry} anulado exitosamente. Los saldos fueron revertidos.'
+                    )
+                    
+            except ValidationError as e:
+                messages.error(request, f'Error: {str(e)}')
+            except Exception as e:
+                logger.error(f'Error al anular asiento {entry.id_journal_entry}: {str(e)}')
+                messages.error(request, f'Error al anular: {str(e)}')
+            
+            return redirect('accounting:journal_entry_detail', id_journal_entry=entry.id_journal_entry)
+    
+    # GET - Mostrar detalle
     # Obtener líneas ordenadas por posición
     lines = entry.lines.all().order_by('position')
     

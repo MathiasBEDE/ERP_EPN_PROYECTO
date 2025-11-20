@@ -43,8 +43,9 @@ def create_entry_for_purchase(purchase_order, user=None):
             return None
         
         with transaction.atomic():
-            # Obtener moneda
-            currency = purchase_order.currency_supplier or Currency.objects.first()
+            # Obtener moneda de la primera línea o usar moneda por defecto
+            first_line = purchase_order.lines.first()
+            currency = first_line.currency_supplier if first_line else Currency.objects.first()
             if not currency:
                 raise ValidationError('No hay moneda configurada en el sistema')
             
