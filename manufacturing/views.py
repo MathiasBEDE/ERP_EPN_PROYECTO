@@ -4,7 +4,9 @@ from django.contrib import messages
 from django.db.models import Sum
 from django.db import transaction
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from manufacturing.models import WorkOrder, WorkOrderStatus, BillOfMaterials
+from accounting.utils import create_entry_for_production
 
 
 @login_required
@@ -90,8 +92,34 @@ def work_order_list_view(request):
                         work_order.status = done_status
                         work_order.save()
                         
+                        # Crear asiento contable automático
+                        try:
+                            journal_entry = create_entry_for_production(
+                                work_order,
+                                user=request.user if request.user.is_authenticated else None
+                            )
+                            if journal_entry:
+                                logger.info(f'Asiento contable {journal_entry.id_journal_entry} creado para producción {work_order.id_work_order}')
+                                messages.success(
+                                    request,
+                                    f'Asiento contable {journal_entry.id_journal_entry} generado automáticamente.'
+                                )
+                        except ValidationError as e:
+                            logger.error(f'Error de validación al crear asiento contable para producción {work_order.id_work_order}: {str(e)}')
+                            messages.warning(
+                                request,
+                                f'⚠️ ORDEN TERMINADA pero fallo contable: {str(e)}'
+                            )
+                        except Exception as e:
+                            # No fallar la transacción si hay error en contabilidad
+                            logger.error(f'Error al crear asiento contable para producción {work_order.id_work_order}: {str(e)}')
+                            messages.warning(
+                                request,
+                                f'⚠️ ORDEN TERMINADA pero error en contabilidad: {str(e)}'
+                            )
+                        
                         messages.success(
-                            request, 
+                            request,
                             f"Orden {work_order.id_work_order} terminada. "
                             f"Se crearon {len(created_movements)} movimientos de inventario."
                         )

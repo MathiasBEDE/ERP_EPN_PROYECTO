@@ -5,9 +5,10 @@ Usage:
     python manage.py init_order_statuses
 
 This command creates the following order statuses if they don't exist:
-    - DRAFT (Borrador): Initial state when creating a new purchase order
+    - DRAFT (Borrador): Initial state when creating a new order
     - CONFIRMED (Confirmado): Order has been confirmed
-    - RECEIVED (Recibido): Order has been received
+    - RECEIVED (Recibido): Purchase order has been received
+    - DELIVERED (Entregada): Sales order has been delivered
     - CANCELLED (Cancelado): Order was cancelled
     - CLOSED (Cerrado): Order is closed
     - INVOICED (Facturado): Order has been invoiced
@@ -33,6 +34,7 @@ class Command(BaseCommand):
             {'name': 'Cancelado', 'symbol': 'CANCELLED'},
             {'name': 'Cerrado', 'symbol': 'CLOSED'},
             {'name': 'Facturado', 'symbol': 'INVOICED'},
+            {'name': 'Entregada', 'symbol': 'DELIVERED'},
         ]
         
         created_count = 0

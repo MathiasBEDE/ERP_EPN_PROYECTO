@@ -1,0 +1,526 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Encabezado -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Crear Orden de Venta</h1>
+        <p class="text-gray-600 mt-1">Complete los datos de la nueva orden de venta</p>
+    </div>
+
+    <!-- Formulario -->
+    <form id="salesOrderForm" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Sección: Datos del Cliente -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Datos del Cliente</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="customerSearchInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        ID Cliente *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="customerSearchInput" 
+                        placeholder="Ingrese ID del cliente (ej: CUST-001)"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                    >
+                    <input type="hidden" id="customerIdHidden">
+                    <small class="text-gray-500 text-xs mt-1 block">
+                        Clientes disponibles: 
+                        {% for customer in customers %}
+                            <span class="font-mono">{{ customer.id_customer }}</span>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </small>
+                </div>
+                
+                <div>
+                    <label for="issueDateInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de Emisión *
+                    </label>
+                    <input 
+                        type="date" 
+                        id="issueDateInput"
+                        value="{{ today|date:'Y-m-d' }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label for="customerNameInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre del Cliente
+                    </label>
+                    <input 
+                        type="text" 
+                        id="customerNameInput" 
+                        readonly
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    >
+                </div>
+                
+                <div>
+                    <label for="customerCityInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Ciudad
+                    </label>
+                    <input 
+                        type="text" 
+                        id="customerCityInput" 
+                        readonly
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    >
+                </div>
+                
+                <div>
+                    <label for="customerEmailInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                    </label>
+                    <input 
+                        type="text" 
+                        id="customerEmailInput" 
+                        readonly
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    >
+                </div>
+                
+                <div>
+                    <label for="sourceLocationInput" class="block text-sm font-medium text-gray-700 mb-1">
+                        Ubicación de Salida
+                    </label>
+                    <select 
+                        id="sourceLocationInput"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">-- Ubicación por Defecto --</option>
+                        {% for location in locations %}
+                        <option value="{{ location.pk }}">{{ location.code }} - {{ location.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label for="notesInput" class="block text-sm font-medium text-gray-700 mb-1">
+                    Notas
+                </label>
+                <textarea 
+                    id="notesInput" 
+                    rows="2"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Notas adicionales sobre la orden"
+                ></textarea>
+            </div>
+        </div>
+        
+        <!-- Sección: Líneas de la Orden -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Líneas de la Orden</h2>
+                <button 
+                    type="button" 
+                    id="addLineBtn"
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                >
+                    + Añadir Línea
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">#</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Material *</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Cantidad *</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Unidad</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Precio *</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Moneda *</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Quitar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Primera línea por defecto -->
+                        <tr class="sales-line-row hover:bg-gray-50" data-line-index="1">
+                            <td class="px-3 py-3 text-sm text-gray-900">1</td>
+                            <td class="px-3 py-3">
+                                <input 
+                                    type="text" 
+                                    class="material-id-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder="MAT-001"
+                                    data-line-index="1"
+                                    required
+                                >
+                                <input type="hidden" class="material-id-hidden" data-line-index="1">
+                            </td>
+                            <td class="px-3 py-3">
+                                <input 
+                                    type="text" 
+                                    class="description-input w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 text-gray-600"
+                                    readonly
+                                    data-line-index="1"
+                                >
+                            </td>
+                            <td class="px-3 py-3">
+                                <input 
+                                    type="number" 
+                                    class="quantity-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    value="1"
+                                    min="1"
+                                    data-line-index="1"
+                                    required
+                                >
+                            </td>
+                            <td class="px-3 py-3">
+                                <input 
+                                    type="text" 
+                                    class="unit-input w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 text-gray-600"
+                                    readonly
+                                    data-line-index="1"
+                                >
+                                <input type="hidden" class="unit-id-hidden" data-line-index="1">
+                            </td>
+                            <td class="px-3 py-3">
+                                <input 
+                                    type="number" 
+                                    class="price-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    step="0.01"
+                                    min="0"
+                                    value="0.00"
+                                    data-line-index="1"
+                                    required
+                                >
+                            </td>
+                            <td class="px-3 py-3">
+                                <select 
+                                    class="currency-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    data-line-index="1"
+                                    required
+                                >
+                                    <option value="">-- Moneda --</option>
+                                    {% for currency in currencies %}
+                                    <option value="{{ currency.pk }}">{{ currency.code }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="px-3 py-3 text-center">
+                                <button 
+                                    type="button" 
+                                    class="remove-line-btn text-red-600 hover:text-red-900 font-medium"
+                                    data-line-index="1"
+                                >
+                                    Quitar
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Botones de acción -->
+        <div class="flex justify-end space-x-4">
+            <a 
+                href="{% url 'sales:sales_order_list' %}" 
+                class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+                Cancelar
+            </a>
+            <button 
+                type="submit" 
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+                Guardar Orden
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let lineCounter = 1;
+    
+    // ==================== BÚSQUEDA DE CLIENTE ====================
+    document.getElementById('customerSearchInput').addEventListener('blur', function() {
+        const customerId = this.value.trim();
+        if (!customerId) return;
+        
+        // Limpiar campos
+        document.getElementById('customerIdHidden').value = '';
+        document.getElementById('customerNameInput').value = '';
+        document.getElementById('customerCityInput').value = '';
+        document.getElementById('customerEmailInput').value = '';
+        
+        fetch(`/sales/api/customer/${customerId}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Cliente no encontrado o inactivo');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('customerIdHidden').value = data.id;
+                document.getElementById('customerNameInput').value = data.name;
+                document.getElementById('customerCityInput').value = data.city;
+                document.getElementById('customerEmailInput').value = data.email;
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+                this.value = '';
+                this.focus();
+            });
+    });
+    
+    // ==================== BÚSQUEDA DE MATERIAL ====================
+    function setupMaterialSearch(row) {
+        const materialInput = row.querySelector('.material-id-input');
+        const lineIndex = materialInput.getAttribute('data-line-index');
+        
+        materialInput.addEventListener('blur', function() {
+            const materialId = this.value.trim();
+            if (!materialId) return;
+            
+            const hiddenInput = row.querySelector('.material-id-hidden');
+            const descInput = row.querySelector('.description-input');
+            const unitInput = row.querySelector('.unit-input');
+            const unitIdInput = row.querySelector('.unit-id-hidden');
+            
+            fetch(`/sales/api/material/${materialId}/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Material no encontrado');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    hiddenInput.value = data.id;
+                    descInput.value = data.name;
+                    if (data.unit) {
+                        unitInput.value = data.unit.symbol;
+                        unitIdInput.value = data.unit.id;
+                    }
+                })
+                .catch(error => {
+                    alert(`Línea ${lineIndex}: ${error.message}`);
+                    this.value = '';
+                    hiddenInput.value = '';
+                    descInput.value = '';
+                    unitInput.value = '';
+                    unitIdInput.value = '';
+                    this.focus();
+                });
+        });
+    }
+    
+    // Configurar búsqueda para la primera línea
+    setupMaterialSearch(document.querySelector('.sales-line-row'));
+    
+    // ==================== AÑADIR LÍNEA ====================
+    document.getElementById('addLineBtn').addEventListener('click', function() {
+        lineCounter++;
+        const tbody = document.getElementById('lineItemsTableBody');
+        const newRow = document.createElement('tr');
+        newRow.className = 'sales-line-row hover:bg-gray-50';
+        newRow.setAttribute('data-line-index', lineCounter);
+        
+        newRow.innerHTML = `
+            <td class="px-3 py-3 text-sm text-gray-900">${lineCounter}</td>
+            <td class="px-3 py-3">
+                <input 
+                    type="text" 
+                    class="material-id-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="MAT-001"
+                    data-line-index="${lineCounter}"
+                    required
+                >
+                <input type="hidden" class="material-id-hidden" data-line-index="${lineCounter}">
+            </td>
+            <td class="px-3 py-3">
+                <input 
+                    type="text" 
+                    class="description-input w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 text-gray-600"
+                    readonly
+                    data-line-index="${lineCounter}"
+                >
+            </td>
+            <td class="px-3 py-3">
+                <input 
+                    type="number" 
+                    class="quantity-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value="1"
+                    min="1"
+                    data-line-index="${lineCounter}"
+                    required
+                >
+            </td>
+            <td class="px-3 py-3">
+                <input 
+                    type="text" 
+                    class="unit-input w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 text-gray-600"
+                    readonly
+                    data-line-index="${lineCounter}"
+                >
+                <input type="hidden" class="unit-id-hidden" data-line-index="${lineCounter}">
+            </td>
+            <td class="px-3 py-3">
+                <input 
+                    type="number" 
+                    class="price-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    step="0.01"
+                    min="0"
+                    value="0.00"
+                    data-line-index="${lineCounter}"
+                    required
+                >
+            </td>
+            <td class="px-3 py-3">
+                <select 
+                    class="currency-input w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    data-line-index="${lineCounter}"
+                    required
+                >
+                    <option value="">-- Moneda --</option>
+                    {% for currency in currencies %}
+                    <option value="{{ currency.pk }}">{{ currency.code }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td class="px-3 py-3 text-center">
+                <button 
+                    type="button" 
+                    class="remove-line-btn text-red-600 hover:text-red-900 font-medium"
+                    data-line-index="${lineCounter}"
+                >
+                    Quitar
+                </button>
+            </td>
+        `;
+        
+        tbody.appendChild(newRow);
+        setupMaterialSearch(newRow);
+        setupRemoveButton(newRow);
+        
+        // Renumerar todas las líneas
+        renumberLines();
+    });
+    
+    // ==================== QUITAR LÍNEA ====================
+    function setupRemoveButton(row) {
+        const removeBtn = row.querySelector('.remove-line-btn');
+        removeBtn.addEventListener('click', function() {
+            const allRows = document.querySelectorAll('.sales-line-row');
+            if (allRows.length === 1) {
+                alert('Debe mantener al menos una línea en la orden');
+                return;
+            }
+            row.remove();
+            renumberLines();
+        });
+    }
+    
+    // Configurar botón de la primera línea
+    setupRemoveButton(document.querySelector('.sales-line-row'));
+    
+    // ==================== RENUMERAR LÍNEAS ====================
+    function renumberLines() {
+        const rows = document.querySelectorAll('.sales-line-row');
+        rows.forEach((row, index) => {
+            const newNumber = index + 1;
+            row.querySelector('td:first-child').textContent = newNumber;
+        });
+    }
+    
+    // ==================== ENVIAR FORMULARIO ====================
+    document.getElementById('salesOrderForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validar cliente
+        const customerId = document.getElementById('customerIdHidden').value;
+        if (!customerId) {
+            alert('Debe seleccionar un cliente válido');
+            document.getElementById('customerSearchInput').focus();
+            return;
+        }
+        
+        // Recolectar líneas
+        const lines = [];
+        const rows = document.querySelectorAll('.sales-line-row');
+        let hasError = false;
+        
+        rows.forEach((row, index) => {
+            const lineNum = index + 1;
+            const materialId = row.querySelector('.material-id-hidden').value;
+            const quantity = row.querySelector('.quantity-input').value;
+            const unitId = row.querySelector('.unit-id-hidden').value;
+            const price = row.querySelector('.price-input').value;
+            const currencyId = row.querySelector('.currency-input').value;
+            
+            if (!materialId || !quantity || !unitId || !price || !currencyId) {
+                alert(`Línea ${lineNum}: Complete todos los campos obligatorios (Material, Cantidad, Precio y Moneda)`);
+                hasError = true;
+                return;
+            }
+            
+            lines.push({
+                material_id: parseInt(materialId),
+                quantity: parseInt(quantity),
+                unit_id: parseInt(unitId),
+                price: parseFloat(price),
+                currency_id: parseInt(currencyId)
+            });
+        });
+        
+        if (hasError) return;
+        
+        if (lines.length === 0) {
+            alert('Debe agregar al menos una línea a la orden');
+            return;
+        }
+        
+        // Preparar datos
+        const sourceLocationId = document.getElementById('sourceLocationInput').value;
+        const data = {
+            customer_id: customerId,
+            source_location_id: sourceLocationId ? parseInt(sourceLocationId) : null,
+            notes: document.getElementById('notesInput').value.trim(),
+            lines: lines
+        };
+        
+        // Enviar al servidor
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Guardando...';
+        
+        fetch('/sales/api/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = `/sales/sales-order/${data.id_sales_order}/`;
+            } else {
+                alert('Error: ' + (data.error || 'Error desconocido'));
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Guardar Orden';
+            }
+        })
+        .catch(error => {
+            alert('Error al guardar la orden: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar Orden';
+        });
+    });
+</script>
+{% endblock %}
