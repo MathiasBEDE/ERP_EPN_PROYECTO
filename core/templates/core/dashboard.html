@@ -92,7 +92,7 @@
                 <p class="text-sm text-gray-600 mb-4">
                     {% if permissions.sales == 1 %}Solo visualizar{% elif permissions.sales == 2 %}Leer y escribir{% endif %}
                 </p>
-                <a href="#" class="mt-auto bg-green-500 hover:bg-green-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                <a href="{% url 'sales:sales_order_list' %}" class="mt-auto bg-green-500 hover:bg-green-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
                     Acceder
                 </a>
             </div>
@@ -144,7 +144,7 @@
                 <p class="text-sm text-gray-600 mb-4">
                     {% if permissions.accounting == 1 %}Solo visualizar{% elif permissions.accounting == 2 %}Leer y escribir{% endif %}
                 </p>
-                <a href="#" class="mt-auto bg-yellow-500 hover:bg-yellow-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                <a href="{% url 'accounting:journal_entry_list' %}" class="mt-auto bg-yellow-500 hover:bg-yellow-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
                     Acceder
                 </a>
             </div>

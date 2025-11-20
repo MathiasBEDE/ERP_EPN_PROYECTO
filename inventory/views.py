@@ -12,6 +12,10 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from .models import InventoryMovement, InventoryLocation, MovementType
 from .forms import InventoryAdjustmentForm
+from accounting.utils import create_entry_for_inventory_adjustment
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -349,6 +353,32 @@ def inventory_adjustment_view(request):
                     
                     # Guardar el movimiento
                     movement.save()
+                    
+                    # Crear asiento contable automático para ajustes
+                    try:
+                        journal_entry = create_entry_for_inventory_adjustment(
+                            movement,
+                            user=request.user if request.user.is_authenticated else None
+                        )
+                        if journal_entry:
+                            logger.info(f'Asiento contable {journal_entry.id_journal_entry} creado para ajuste {movement.id_inventory_movement}')
+                            messages.success(
+                                request,
+                                f'Asiento contable {journal_entry.id_journal_entry} generado automáticamente.'
+                            )
+                    except ValidationError as e:
+                        logger.error(f'Error de validación al crear asiento contable para ajuste {movement.id_inventory_movement}: {str(e)}')
+                        messages.warning(
+                            request,
+                            f'⚠️ AJUSTE REGISTRADO pero fallo contable: {str(e)}'
+                        )
+                    except Exception as e:
+                        # No fallar la transacción si hay error en contabilidad
+                        logger.error(f'Error al crear asiento contable para ajuste {movement.id_inventory_movement}: {str(e)}')
+                        messages.warning(
+                            request,
+                            f'⚠️ AJUSTE REGISTRADO pero error en contabilidad: {str(e)}'
+                        )
                     
                     # Mensaje de éxito con detalles del ajuste
                     movement_type_display = "entrada" if movement.movement_type.symbol == "ADJUSTMENT_IN" else "salida"

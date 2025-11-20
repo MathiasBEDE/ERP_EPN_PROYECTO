@@ -1,0 +1,292 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Mensajes -->
+    {% if messages %}
+    <div class="mb-6">
+        {% for message in messages %}
+        <div class="{% if message.tags == 'success' %}bg-green-100 border-green-400 text-green-700{% elif message.tags == 'error' %}bg-red-100 border-red-400 text-red-700{% else %}bg-blue-100 border-blue-400 text-blue-700{% endif %} border px-4 py-3 rounded relative" role="alert">
+            <span class="block sm:inline">{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Encabezado -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Asiento Contable {{ entry.id_journal_entry }}</h1>
+            <p class="text-gray-600 mt-1">Detalle completo del asiento contable</p>
+        </div>
+        <div>
+            <a href="{% url 'accounting:journal_entry_list' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                ← Volver al Listado
+            </a>
+        </div>
+    </div>
+    
+    <!-- Información del Asiento -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-start mb-4">
+            <h2 class="text-xl font-semibold text-gray-900">Información del Asiento</h2>
+            <div>
+                {% if entry.status == 'DRAFT' %}
+                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    Borrador
+                </span>
+                {% elif entry.status == 'POSTED' %}
+                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                    Contabilizado
+                </span>
+                {% elif entry.status == 'CANCELLED' %}
+                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                    Anulado
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">ID Asiento</h3>
+                <p class="text-lg font-semibold text-gray-900">{{ entry.id_journal_entry }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Fecha</h3>
+                <p class="text-lg text-gray-900">{{ entry.date|date:"d/m/Y" }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Moneda</h3>
+                <p class="text-lg text-gray-900">{{ entry.currency.code }} ({{ entry.currency.symbol }})</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Tipo de Operación</h3>
+                <p class="text-lg text-gray-900">
+                    <span class="px-2 py-1 text-sm rounded-full 
+                        {% if entry.operation_type == 'PURCHASE' %}bg-purple-100 text-purple-800
+                        {% elif entry.operation_type == 'SALE' %}bg-green-100 text-green-800
+                        {% elif entry.operation_type == 'PRODUCTION' %}bg-blue-100 text-blue-800
+                        {% elif entry.operation_type == 'ADJUSTMENT' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ entry.get_operation_type_display }}
+                    </span>
+                </p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Módulo</h3>
+                <p class="text-lg text-gray-900">
+                    <span class="px-2 py-1 text-sm rounded-full bg-gray-100 text-gray-800">
+                        {{ entry.get_module_display }}
+                    </span>
+                </p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Referencia</h3>
+                <p class="text-lg font-semibold text-blue-600">{{ entry.reference }}</p>
+            </div>
+            
+            <div class="col-span-3">
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Descripción</h3>
+                <p class="text-gray-900">{{ entry.description }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Creado Por</h3>
+                <p class="text-lg text-gray-900">
+                    {% if entry.created_by %}
+                        {{ entry.created_by.username }}
+                    {% else %}
+                        Sistema
+                    {% endif %}
+                </p>
+                <p class="text-sm text-gray-600">{{ entry.created_at|date:"d/m/Y H:i" }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Última Actualización</h3>
+                <p class="text-lg text-gray-900">{{ entry.updated_at|date:"d/m/Y H:i" }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-2">Balance</h3>
+                <p class="text-lg">
+                    {% if is_balanced %}
+                    <span class="text-green-600 font-bold">✓ Balanceado</span>
+                    {% else %}
+                    <span class="text-red-600 font-bold">✗ Desbalanceado</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Líneas del Asiento -->
+    <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Líneas del Asiento</h2>
+        </div>
+        
+        {% if lines %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            #
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Cuenta
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Descripción
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Naturaleza
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Debe
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Haber
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for line in lines %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ line.position }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ line.account.code }}</div>
+                            <div class="text-sm text-gray-600">{{ line.account.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            {{ line.description }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span class="px-2 py-1 text-xs rounded-full 
+                                {% if line.account.nature.symbol == 'DEBIT' %}bg-blue-100 text-blue-800
+                                {% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ line.account.nature.name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            {% if line.debit > 0 %}
+                            <span class="font-medium text-gray-900">{{ line.debit|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            {% if line.credit > 0 %}
+                            <span class="font-medium text-gray-900">{{ line.credit|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50">
+                    <tr class="border-t-2 border-gray-300">
+                        <td colspan="4" class="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                            TOTALES:
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold 
+                            {% if is_balanced %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ total_debit|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold 
+                            {% if is_balanced %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ total_credit|floatformat:2 }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="6" class="px-6 py-2 text-right text-sm text-gray-600">
+                            {% if is_balanced %}
+                            <span class="text-green-600 font-medium">✓ El asiento está balanceado (Debe = Haber)</span>
+                            {% else %}
+                            <span class="text-red-600 font-medium">✗ El asiento NO está balanceado (Diferencia: {{ total_debit|add:"-"|add:total_credit|floatformat:2 }})</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500">
+            <p>No hay líneas registradas en este asiento.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Acciones -->
+    {% if can_post or can_cancel %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Acciones</h2>
+        
+        {% if can_post %}
+        <!-- Información sobre contabilizar -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h3 class="text-sm font-semibold text-blue-900 mb-2">📌 ¿Qué significa "Contabilizar"?</h3>
+            <p class="text-sm text-blue-800">
+                Al contabilizar este asiento, se realizarán las siguientes acciones:
+            </p>
+            <ul class="text-sm text-blue-800 list-disc list-inside mt-2">
+                <li>El estado cambiará de <strong>DRAFT</strong> a <strong>POSTED</strong></li>
+                <li>Se actualizarán los <strong>saldos actuales</strong> de todas las cuentas involucradas</li>
+                <li>El asiento quedará <strong>registrado oficialmente</strong> en la contabilidad</li>
+                <li>Una vez contabilizado, <strong>no se puede editar</strong>, solo anular</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if can_cancel %}
+        <!-- Información sobre anular -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <h3 class="text-sm font-semibold text-yellow-900 mb-2">⚠️ ¿Qué significa "Anular"?</h3>
+            <p class="text-sm text-yellow-800">
+                Al anular este asiento, se realizarán las siguientes acciones:
+            </p>
+            <ul class="text-sm text-yellow-800 list-disc list-inside mt-2">
+                <li>El estado cambiará de <strong>POSTED</strong> a <strong>CANCELLED</strong></li>
+                <li>Se <strong>revertirán los saldos</strong> de todas las cuentas (operación inversa)</li>
+                <li>El asiento quedará marcado como <strong>anulado</strong></li>
+                <li>Esta acción <strong>es irreversible</strong></li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="flex space-x-4">
+            {% if can_post %}
+            <form method="post" onsubmit="return confirm('¿Está seguro de contabilizar este asiento? Se actualizarán los saldos de las cuentas.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="post">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors font-medium">
+                    ✓ Contabilizar Asiento
+                </button>
+            </form>
+            {% endif %}
+            
+            {% if can_cancel %}
+            <form method="post" onsubmit="return confirm('¿Está seguro de anular este asiento? Se revertirán los saldos de las cuentas. Esta acción no se puede deshacer.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors font-medium">
+                    ✗ Anular Asiento
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

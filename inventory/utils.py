@@ -274,3 +274,101 @@ def create_inventory_movements_for_production_order(production_order, user=None)
             )
     
     return created_movements
+
+
+def create_inventory_movements_for_sales_order(sales_order, user=None):
+    """
+    Create inventory movements for a sales order that has been delivered.
+    
+    This function creates an output (SALE_OUT) movement for each line in the
+    sales order. It deducts the quantities from the source location specified
+    in the order, or from the default location if not specified.
+    
+    To avoid duplicates, this function checks if movements already exist for
+    this sales order reference before creating new ones.
+    
+    Args:
+        sales_order: SalesOrder instance that has been delivered.
+        user: User instance who is performing the action (optional).
+        
+    Returns:
+        list: List of created InventoryMovement instances.
+        
+    Raises:
+        InventoryLocation.DoesNotExist: If no source location is found.
+        MovementType.DoesNotExist: If SALE_OUT movement type doesn't exist.
+        ValidationError: If there is insufficient stock for the delivery.
+    """
+    
+    # Use source_location if specified, otherwise use default location
+    if sales_order.source_location:
+        location = sales_order.source_location
+    else:
+        location = get_default_inventory_location()
+    
+    # Get the SALE_OUT movement type
+    try:
+        movement_type = MovementType.objects.get(symbol='SALE_OUT')
+    except MovementType.DoesNotExist:
+        raise MovementType.DoesNotExist(
+            "Tipo de movimiento 'SALE_OUT' no encontrado. "
+            "Por favor, ejecute el comando init_movement_types."
+        )
+    
+    # Check if movements already exist for this sales order
+    # to avoid duplicates
+    existing_movements = InventoryMovement.objects.filter(
+        reference=sales_order.id_sales_order,
+        movement_type=movement_type
+    ).exists()
+    
+    if existing_movements:
+        # Movements already exist, don't create duplicates
+        return []
+    
+    created_movements = []
+    
+    # Iterate through all lines and create movements
+    for line in sales_order.lines.all():
+        # Use the quantity from the line (assuming full delivery)
+        # In the future, you could use delivered_quantity for partial deliveries
+        quantity_to_deliver = line.quantity
+        
+        # Skip lines with zero quantity
+        if quantity_to_deliver <= 0:
+            continue
+        
+        # Generate unique ID for the movement
+        # Format: INV-YYYYMMDD-HHMMSS-LINE_ID
+        timestamp = timezone.now().strftime('%Y%m%d-%H%M%S')
+        movement_id = f"INV-{timestamp}-{line.id}"
+        
+        # Create the inventory movement
+        movement = InventoryMovement(
+            id_inventory_movement=movement_id,
+            location=location,
+            material=line.material,
+            quantity=quantity_to_deliver,
+            unit_type=line.unit_material,
+            movement_type=movement_type,
+            movement_date=timezone.now(),
+            reference=sales_order.id_sales_order,
+            created_by=user
+        )
+        
+        # Validate integrity before saving
+        # This will check if there is sufficient stock for the output movement
+        try:
+            movement.full_clean()
+            movement.save()
+            created_movements.append(movement)
+        except ValidationError as e:
+            # For sales orders, if there's insufficient stock, we should abort
+            # the entire delivery operation to maintain consistency
+            raise ValidationError(
+                f"Stock insuficiente para entregar {line.material.name} "
+                f"(línea {line.position}): {e}"
+            )
+    
+    return created_movements
+

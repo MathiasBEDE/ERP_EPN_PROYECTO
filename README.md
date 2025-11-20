@@ -14,7 +14,11 @@ Formularios funcionales
 Administración mejorada
 
 Separación clara por apps
+<<<<<<< HEAD
 #  ERP  – Django Modular ERP System
+=======
+#  ERP – Django Modular ERP System
+>>>>>>> 85c6fea (actualizacion de porduccion)
 
 ERP JM es un ERP modular construido con **Django**, organizado por áreas funcionales reales:  
 **Compras, Inventario, Contabilidad, Materiales, Proveedores y Core**.

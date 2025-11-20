@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 from suppliers.models import Supplier
 from materials.models import Material
 from materials.models import Unit
@@ -12,6 +13,7 @@ from core.models import Currency
 from .models import PurchaseOrder, PurchaseOrderLine, OrderStatus
 from inventory.utils import create_inventory_movements_for_purchase_order
 from inventory.models import InventoryLocation, MovementType
+from accounting.utils import create_entry_for_purchase
 from datetime import date
 import json
 import logging
@@ -108,6 +110,32 @@ def purchase_order_detail_view(request, order_id):
                             order, 
                             user=request.user if request.user.is_authenticated else None
                         )
+                        
+                        # Crear asiento contable automático
+                        try:
+                            journal_entry = create_entry_for_purchase(
+                                order,
+                                user=request.user if request.user.is_authenticated else None
+                            )
+                            if journal_entry:
+                                logger.info(f'Asiento contable {journal_entry.id_journal_entry} creado para compra {order.id_purchase_order}')
+                                messages.success(
+                                    request,
+                                    f'Asiento contable {journal_entry.id_journal_entry} generado automáticamente.'
+                                )
+                        except ValidationError as e:
+                            logger.error(f'Error de validación al crear asiento contable para compra {order.id_purchase_order}: {str(e)}')
+                            messages.warning(
+                                request,
+                                f'⚠️ ORDEN RECIBIDA pero fallo contable: {str(e)}'
+                            )
+                        except Exception as e:
+                            # No fallar la transacción si hay error en contabilidad
+                            logger.error(f'Error al crear asiento contable para compra {order.id_purchase_order}: {str(e)}')
+                            messages.warning(
+                                request,
+                                f'⚠️ ORDEN RECIBIDA pero error en contabilidad: {str(e)}'
+                            )
                         
                         num_movements = len(created_movements)
                         messages.success(
