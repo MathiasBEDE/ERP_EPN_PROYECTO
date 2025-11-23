@@ -16,4 +16,5 @@ urlpatterns = [
     path('manufacturing/', include('manufacturing.urls', namespace='manufacturing')),
     path('sales/', include('sales.urls', namespace='sales')),
     path('accounting/', include('accounting.urls', namespace='accounting')),
+    path('reporting/', include('reporting.urls', namespace='reporting')),
 ]

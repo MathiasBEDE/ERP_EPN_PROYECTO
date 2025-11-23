@@ -161,7 +161,7 @@
                 <p class="text-sm text-gray-600 mb-4">
                     {% if permissions.reporting == 1 %}Solo visualizar{% elif permissions.reporting == 2 %}Leer y escribir{% endif %}
                 </p>
-                <a href="#" class="mt-auto bg-red-500 hover:bg-red-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
+                <a href="{% url 'reporting:dashboard' %}" class="mt-auto bg-red-500 hover:bg-red-600 text-white text-center py-2 px-4 rounded-lg transition-colors">
                     Acceder
                 </a>
             </div>

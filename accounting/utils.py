@@ -308,7 +308,7 @@ def create_entry_for_production(work_order, user=None):
             # Calcular valor de produccion
             # TODO: Implementar calculo de costos real basado en materiales consumidos
             # Por ahora usamos un valor estimado basado en cantidad producida
-            total = Decimal(str(work_order.quantity_to_produce)) * Decimal('100.00')
+            total = Decimal(str(work_order.quantity)) * Decimal('100.00')
             
             if total == 0:
                 logger.warning(f"Produccion {work_order.id_work_order} tiene cantidad 0, no se crea asiento")
@@ -317,8 +317,8 @@ def create_entry_for_production(work_order, user=None):
             # Crear asiento contable
             journal_entry = JournalEntry.objects.create(
                 id_journal_entry=journal_entry_id,
-                date=work_order.scheduled_start_date or date.today(),
-                description=f"Produccion terminada {work_order.id_work_order} - Material: {work_order.material.name}",
+                date=date.today(),
+                description=f"Produccion terminada {work_order.id_work_order} - Producto: {work_order.bill_of_materials.material.name}",
                 operation_type='PRODUCTION',
                 reference=work_order.id_work_order,
                 module='MANUFACTURING',
@@ -362,7 +362,7 @@ def create_entry_for_production(work_order, user=None):
             JournalEntryLine.objects.create(
                 journal_entry=journal_entry,
                 account=finished_goods_account,
-                description=f"Produccion de {work_order.quantity_to_produce} unidades de {work_order.material.name}",
+                description=f"Produccion de {work_order.quantity} unidades de {work_order.bill_of_materials.material.name}",
                 debit=total,
                 credit=Decimal('0.00'),
                 position=1

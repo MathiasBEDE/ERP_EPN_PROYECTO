@@ -1,0 +1,449 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    /* Tarjetas de métricas principales */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0,0,0,0.05);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--card-color-start), var(--card-color-end));
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+    }
+    
+    .metric-card:hover::before {
+        opacity: 1;
+    }
+    
+    /* Variantes de color para tarjetas */
+    .metric-card.green {
+        --card-color-start: #10b981;
+        --card-color-end: #059669;
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    }
+    
+    .metric-card.blue {
+        --card-color-start: #3b82f6;
+        --card-color-end: #2563eb;
+        background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+    }
+    
+    .metric-card.purple {
+        --card-color-start: #a855f7;
+        --card-color-end: #9333ea;
+        background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+    }
+    
+    .metric-card.yellow {
+        --card-color-start: #f59e0b;
+        --card-color-end: #d97706;
+        background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+    }
+    
+    .metric-card.red {
+        --card-color-start: #ef4444;
+        --card-color-end: #dc2626;
+        background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+    }
+    
+    .metric-card.indigo {
+        --card-color-start: #6366f1;
+        --card-color-end: #4f46e5;
+        background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+    }
+    
+    /* Encabezado de tarjeta */
+    .metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Iconos de métricas */
+    .metric-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .metric-icon svg {
+        width: 28px;
+        height: 28px;
+        z-index: 2;
+        position: relative;
+    }
+    
+    .metric-icon::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 14px;
+        background: currentColor;
+        opacity: 0.12;
+    }
+    
+    /* Badge de tendencia */
+    .metric-trend {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.8);
+        backdrop-filter: blur(8px);
+    }
+    
+    /* Etiqueta de métrica */
+    .metric-label {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Valor de métrica */
+    .metric-value {
+        font-size: 2.75rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
+    }
+    
+    /* Descripción de métrica */
+    .metric-description {
+        color: #64748b;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .metric-description svg {
+        width: 16px;
+        height: 16px;
+        opacity: 0.6;
+    }
+    
+    /* Tarjetas financieras especiales */
+    .financial-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .financial-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .financial-icon-wrapper {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .financial-icon-wrapper svg {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .financial-content {
+        flex: 1;
+    }
+    
+    .financial-label {
+        color: #64748b;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .financial-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+    
+    .financial-subtitle {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        font-weight: 500;
+    }
+    
+    /* Contenedor de gráficos */
+    .chart-container {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.05);
+        margin-top: 2rem;
+    }
+    
+    .chart-title {
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .chart-title svg {
+        width: 24px;
+        height: 24px;
+        color: #64748b;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .metric-value {
+            font-size: 2.25rem;
+        }
+        
+        .financial-value {
+            font-size: 1.875rem;
+        }
+        
+        .metric-icon {
+            width: 56px;
+            height: 56px;
+        }
+        
+        .financial-icon-wrapper {
+            width: 64px;
+            height: 64px;
+        }
+    }
+    
+    /* Animación de carga */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .metric-card, .financial-card, .chart-container {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+    
+    .metric-card:nth-child(1) { animation-delay: 0.05s; }
+    .metric-card:nth-child(2) { animation-delay: 0.1s; }
+    .metric-card:nth-child(3) { animation-delay: 0.15s; }
+    .metric-card:nth-child(4) { animation-delay: 0.2s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-10">
+        <h1 class="text-4xl font-bold text-gray-900">Dashboard de Reportería</h1>
+        <p class="text-gray-600 mt-3 text-lg">Métricas y análisis del ERP - {{ current_month }}</p>
+    </div>
+
+    <!-- Tarjetas de métricas principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+        <!-- Ventas -->
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Ventas del Mes</h3>
+            <div class="text-3xl font-bold text-gray-900 mb-2" id="sales-count">{{ sales_count }}</div>
+            <p class="text-sm text-gray-600">Órdenes completadas</p>
+        </div>
+
+        <!-- Compras -->
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Compras del Mes</h3>
+            <div class="text-3xl font-bold text-gray-900 mb-2" id="purchases-count">{{ purchases_count }}</div>
+            <p class="text-sm text-gray-600">Órdenes recibidas</p>
+        </div>
+
+        <!-- Producción -->
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Producción</h3>
+            <div class="text-3xl font-bold text-gray-900 mb-2" id="production-count">{{ production_count }}</div>
+            <p class="text-sm text-gray-600">Órdenes terminadas</p>
+        </div>
+
+        <!-- Asientos Contables -->
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Asientos Contables</h3>
+            <div class="text-3xl font-bold text-gray-900 mb-2" id="journal-count">{{ journal_entries_count }}</div>
+            <p class="text-sm text-gray-600">Registros contabilizados</p>
+        </div>
+    </div>
+
+    <!-- Métricas financieras -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Ingresos del Mes</h3>
+            <div class="text-3xl font-bold text-green-600 mb-4">${{ monthly_sales_total|floatformat:2 }}</div>
+            <p class="text-sm text-gray-600">Total de ventas completadas</p>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Egresos del Mes</h3>
+            <div class="text-3xl font-bold text-red-600 mb-4">${{ monthly_purchases_total|floatformat:2 }}</div>
+            <p class="text-sm text-gray-600">Total de compras recibidas</p>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-6 flex flex-col hover:shadow-lg transition-shadow">
+            <div class="flex items-center mb-4">
+                <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Beneficio Neto</h3>
+            <div class="text-3xl font-bold text-blue-600 mb-4">${{ net_benefit|floatformat:2 }}</div>
+            <p class="text-sm text-gray-600">Ingresos - Egresos</p>
+        </div>
+    </div>
+
+    <!-- Botones de análisis -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Botón: Análisis de Compras -->
+        <a href="{% url 'reporting:purchases_report' %}" class="bg-white shadow rounded-lg p-8 flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
+            <div class="flex items-center mb-6">
+                <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                    <svg class="h-10 w-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Análisis de Compras</h3>
+                    <p class="text-sm text-gray-600 mt-1">Materiales por proveedor y comparativo</p>
+                </div>
+            </div>
+            <div class="mt-auto">
+                <p class="text-blue-600 font-medium flex items-center">
+                    Ver reporte detallado
+                    <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </p>
+            </div>
+        </a>
+
+        <!-- Botón: Análisis de Ventas -->
+        <a href="{% url 'reporting:sales_report' %}" class="bg-white shadow rounded-lg p-8 flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
+            <div class="flex items-center mb-6">
+                <div class="p-3 bg-green-100 rounded-lg mr-4">
+                    <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Análisis de Ventas</h3>
+                    <p class="text-sm text-gray-600 mt-1">Productos por cliente y comparativo</p>
+                </div>
+            </div>
+            <div class="mt-auto">
+                <p class="text-green-600 font-medium flex items-center">
+                    Ver reporte detallado
+                    <svg class="h-5 w-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Configuración global de Chart.js
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#6b7280';
+</script>
+{% endblock %}

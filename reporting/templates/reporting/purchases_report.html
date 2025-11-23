@@ -1,0 +1,320 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background-color: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header con breadcrumb -->
+    <div class="mb-8">
+        <nav class="text-sm mb-4">
+            <ol class="flex items-center space-x-2 text-gray-500">
+                <li><a href="{% url 'reporting:dashboard' %}" class="hover:text-blue-600">Dashboard</a></li>
+                <li><span class="mx-2">/</span></li>
+                <li class="text-gray-900 font-medium">Análisis de Compras</li>
+            </ol>
+        </nav>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900">Análisis de Compras</h1>
+                <p class="text-gray-600 mt-2 text-lg">Reporte detallado de compras por proveedor y material</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="window.print()" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
+                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                    Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Periodo</label>
+                <select name="period" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="week" {% if period == 'week' %}selected{% endif %}>Última Semana</option>
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>Este Mes</option>
+                    <option value="quarter" {% if period == 'quarter' %}selected{% endif %}>Último Trimestre</option>
+                    <option value="year" {% if period == 'year' %}selected{% endif %}>Este Año</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Proveedor</label>
+                <select name="supplier" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Todos los Proveedores</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.id }}" {% if selected_supplier == supplier.id|stringformat:"s" %}selected{% endif %}>
+                        {{ supplier.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    Aplicar Filtros
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Métricas principales -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Total Comprado</h3>
+            <div class="text-3xl font-bold text-gray-900">${{ total_purchases|floatformat:2 }}</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Órdenes</h3>
+            <div class="text-3xl font-bold text-gray-900">{{ purchases_count }}</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Periodo Anterior</h3>
+            <div class="text-3xl font-bold text-gray-900">${{ prev_total|floatformat:2 }}</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="p-3 {% if growth_percentage >= 0 %}bg-red-100{% else %}bg-green-100{% endif %} rounded-lg">
+                    <svg class="h-8 w-8 {% if growth_percentage >= 0 %}text-red-600{% else %}text-green-600{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if growth_percentage >= 0 %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        {% else %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                        {% endif %}
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Variación</h3>
+            <div class="text-3xl font-bold {% if growth_percentage >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ growth_percentage|floatformat:1 }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Compras por Proveedor -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="h-6 w-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                Top 10 Proveedores
+            </h3>
+            <div style="height: 300px;">
+                <canvas id="supplierChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Materiales más Comprados -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="h-6 w-6 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                Top 5 Materiales
+            </h3>
+            <div style="height: 300px;">
+                <canvas id="materialChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de compras -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-xl font-bold text-gray-900">Detalle de Compras</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Orden</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Proveedor</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for purchase in purchases %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ purchase.id_purchase_order }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ purchase.supplier.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-600">{{ purchase.issue_date|date:"d/m/Y" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ purchase.status.name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <div class="text-sm font-semibold text-gray-900">
+                                ${{ purchase.get_total_amount|floatformat:2 }}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            No hay compras en este periodo
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#6b7280';
+
+// Gráfico de Proveedores
+const supplierData = {
+    labels: [
+        {% for item in supplier_analysis %}
+        "{{ item.supplier.name|escapejs }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ],
+    datasets: [{
+        label: 'Compras ($)',
+        data: [
+            {% for item in supplier_analysis %}
+            {{ item.total }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+        borderColor: '#ef4444',
+        borderWidth: 1
+    }]
+};
+
+const supplierChart = new Chart(document.getElementById('supplierChart'), {
+    type: 'bar',
+    data: supplierData,
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.parsed.x.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Materiales
+const materialData = {
+    labels: [
+        {% for item in top_materials %}
+        "{{ item.material.name|escapejs }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ],
+    datasets: [{
+        label: 'Compras ($)',
+        data: [
+            {% for item in top_materials %}
+            {{ item.total }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        backgroundColor: [
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(239, 68, 68, 0.8)'
+        ],
+        borderWidth: 0
+    }]
+};
+
+const materialChart = new Chart(document.getElementById('materialChart'), {
+    type: 'doughnut',
+    data: materialData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 15,
+                    font: { size: 12 }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.parsed.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

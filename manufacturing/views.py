@@ -7,6 +7,9 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from manufacturing.models import WorkOrder, WorkOrderStatus, BillOfMaterials
 from accounting.utils import create_entry_for_production
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
