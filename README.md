@@ -502,22 +502,7 @@ Después de ejecutar las migraciones e inicializar datos maestros, accede al pan
 
 ---
 
-##  Pruebas
 
-### Prueba de Integración Compras → Inventario
-
-```bash
-python test_purchase_inventory_integration.py
-```
-
-Este script verifica:
-- ✓ Creación de órdenes de compra
-- ✓ Cambio de estado a RECEIVED
-- ✓ Creación automática de movimientos de inventario
-- ✓ Protección contra duplicados
-- ✓ Integridad de referencias
-
----
 
 ##  Flujo Completo de Compras
 
