@@ -96,7 +96,7 @@ ERP_PROJECT/
 **Notas:**
 - Los modelos **Countries** y **Currency** fueron movidos al módulo `core/`.
 
-**📘 Documentación completa:** Ver [DOCUMENTACION_ACCOUNTING.md](DOCUMENTACION_ACCOUNTING.md)
+
 
 ---
 
